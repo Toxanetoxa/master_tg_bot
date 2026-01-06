@@ -3,7 +3,7 @@
     <n-layout class="app">
       <n-layout-header class="top" bordered>
         <div class="w-full px-4 py-3">
-          <HeaderBar :me="me" v-model:is-dark="isDark" @logout="logout" />
+          <HeaderBar :me="me" :route="route" v-model:is-dark="isDark" @logout="logout" @navigate="setRoute" />
         </div>
       </n-layout-header>
 
@@ -18,59 +18,69 @@
 
         <template v-else>
           <div class="w-full px-4 pb-10">
-            <div class="grid grid-cols-1 gap-4 xl:grid-cols-[220px_minmax(0,1fr)_360px]">
-            <n-layout-sider width="260" bordered content-style="padding: 12px;">
-              <DayList
-                v-model:search="daySearch"
-                :days="filteredDays"
-                :selected-day-id="selectedDayId"
-                @select="selectDay"
-                @create="createDay"
-                @clear-search="daySearch = ''"
-              />
-            </n-layout-sider>
+            <div v-if="route === 'editor'" class="grid grid-cols-1 gap-4 xl:grid-cols-[220px_minmax(0,1fr)_500px]">
+              <n-layout-sider width="260" bordered content-style="padding: 12px;">
+                <DayList
+                  v-model:search="daySearch"
+                  :days="filteredDays"
+                  :selected-day-id="selectedDayId"
+                  @select="selectDay"
+                  @create="createDay"
+                  @clear-search="daySearch = ''"
+                />
+              </n-layout-sider>
 
-            <n-layout-content class="main" content-style="padding: 12px;">
-              <DayEditor
-                :day="selectedDay"
-                @save="saveDay"
-                @delete="deleteDay"
-                @create-message="createMessage"
-                @bulk-open="showBulk = true"
-              >
-                <div class="mb-3">
-                  <SearchBar v-model="messageSearch" @clear="messageSearch = ''" />
-                </div>
-                <div class="max-h-[70vh] overflow-y-auto pr-1 pb-[100px]">
-                  <MessageList
-                    :messages="filteredMessages"
-                    :selected-message-id="selectedMessageId"
-                    :draggable="messageSearch.length === 0"
-                    :feedback-ids="messageIdsWithFeedback"
-                    @select="selectMessage"
-                    @save="saveMessage"
-                    @delete="deleteMessage"
-                    @reorder="reorderMessages"
-                  />
-                </div>
-              </DayEditor>
-            </n-layout-content>
+              <n-layout-content class="main" content-style="padding: 12px;">
+                <DayEditor
+                  :day="selectedDay"
+                  @save="saveDay"
+                  @delete="deleteDay"
+                  @create-message="createMessage"
+                  @bulk-open="showBulk = true"
+                >
+                  <div class="mb-3">
+                    <SearchBar v-model="messageSearch" @clear="messageSearch = ''" />
+                  </div>
+                  <div class="max-h-[70vh] overflow-y-auto pr-1 pb-[100px]">
+                    <MessageList
+                      :messages="filteredMessages"
+                      :selected-message-id="selectedMessageId"
+                      :draggable="messageSearch.length === 0"
+                      :feedback-ids="messageIdsWithFeedback"
+                      @select="selectMessage"
+                      @save="saveMessage"
+                      @delete="deleteMessage"
+                      @reorder="reorderMessages"
+                    />
+                  </div>
+                </DayEditor>
+              </n-layout-content>
 
-            <n-layout-sider width="360" bordered content-style="padding: 12px;">
-              <FeedbackPanel
-                :selected-message-id="selectedMessageId"
-                :buttons="feedbackButtons"
-                :messages="feedbackMessages"
-                :type-options="feedbackTypeOptions"
-                @refresh="loadFeedback"
-                @add-button="addButton"
-                @save-button="saveButton"
-                @delete-button="deleteButton"
-                @add-message="addFeedbackMessage"
-                @save-message="saveFeedbackMessage"
-                @delete-message="deleteFeedbackMessage"
+              <n-layout-sider width="500" bordered content-style="padding: 12px;">
+                <FeedbackPanel
+                  :selected-message-id="selectedMessageId"
+                  :buttons="feedbackButtons"
+                  :messages="feedbackMessages"
+                  :type-options="feedbackTypeOptions"
+                  @refresh="loadFeedback"
+                  @add-button="addButton"
+                  @save-button="saveButton"
+                  @delete-button="deleteButton"
+                  @add-message="addFeedbackMessage"
+                  @save-message="saveFeedbackMessage"
+                  @delete-message="deleteFeedbackMessage"
+                />
+              </n-layout-sider>
+            </div>
+            <div v-else class="max-w-[900px]">
+              <PremiumDaysPage v-if="route === 'premium-days'" :days="days" @toggle-day-premium="toggleDayPremium" />
+              <UsersPage
+                v-else
+                :users="users"
+                :selected-user-id="selectedUserId"
+                v-model:search="userSearch"
+                @select="selectUser"
               />
-            </n-layout-sider>
             </div>
           </div>
         </template>
@@ -83,12 +93,13 @@
 
 <script setup lang="ts">
 import { NConfigProvider, NLayout, NLayoutContent, NLayoutHeader, NLayoutSider, darkTheme } from 'naive-ui';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { createDiscreteApi } from 'naive-ui';
 import { useLocalStorage } from '@vueuse/core';
 import { apiDelete, apiGet, apiPost, apiPut } from './api';
 import type {
   AdminUser,
+  AppUser,
   Day,
   FeedbackButton,
   FeedbackMessage,
@@ -103,6 +114,8 @@ import MessageList from './components/MessageList.vue';
 import FeedbackPanel from './components/FeedbackPanel.vue';
 import BulkModal from './components/BulkModal.vue';
 import SearchBar from './components/SearchBar.vue';
+import PremiumDaysPage from './components/PremiumDaysPage.vue';
+import UsersPage from './components/UsersPage.vue';
 
 const me = ref<AdminUser | null>(null);
 const days = ref<Day[]>([]);
@@ -114,6 +127,8 @@ const selectedMessage = ref<Message | null>(null);
 const feedbackButtons = ref<FeedbackButton[]>([]);
 const feedbackMessages = ref<FeedbackMessage[]>([]);
 const feedbackMessageIds = ref<number[]>([]);
+const users = ref<AppUser[]>([]);
+const selectedUserId = ref<number | null>(null);
 const messageIdsWithFeedback = computed(() => {
   return new Set(feedbackMessageIds.value);
 });
@@ -128,6 +143,8 @@ const isDark = useLocalStorage('admin_theme_dark', false);
 const theme = computed(() => (isDark.value ? darkTheme : null));
 const daySearch = ref('');
 const messageSearch = ref('');
+const userSearch = ref('');
+const route = ref<'editor' | 'premium-days' | 'users'>('editor');
 
 const sortMessages = () => {
   messages.value = [...messages.value].sort((a, b) => a.step_index - b.step_index);
@@ -161,8 +178,38 @@ const loadMe = async () => {
   }
 };
 
+const syncRouteFromHash = () => {
+  const hash = window.location.hash.replace('#', '');
+  if (hash === 'premium-days') {
+    route.value = 'premium-days';
+  } else if (hash === 'users') {
+    route.value = 'users';
+  } else {
+    route.value = 'editor';
+  }
+};
+
+const setRoute = (next: 'editor' | 'premium-days' | 'users') => {
+  route.value = next;
+  if (next === 'premium-days') {
+    window.location.hash = '#premium-days';
+  } else if (next === 'users') {
+    window.location.hash = '#users';
+  } else {
+    window.location.hash = '';
+  }
+};
+
 const loadDays = async () => {
   days.value = await apiGet<Day[]>('/api/days');
+};
+
+const loadUsers = async () => {
+  users.value = await apiGet<AppUser[]>('/api/users');
+};
+
+const selectUser = (id: number) => {
+  selectedUserId.value = id;
 };
 
 const selectDay = async (id: number) => {
@@ -189,6 +236,19 @@ const saveDay = async () => {
   const updated = await apiPut<Day>(`/api/days/${dayId}`, selectedDay.value);
   const idx = days.value.findIndex((d) => d.id === updated.id);
   if (idx >= 0) days.value[idx] = updated;
+};
+
+const toggleDayPremium = async (payload: { id: number; isPremium: boolean }) => {
+  const idx = days.value.findIndex((d) => d.id === payload.id);
+  if (idx < 0) return;
+  const updated = await apiPut<Day>(`/api/days/${payload.id}`, {
+    ...days.value[idx],
+    is_premium: payload.isPremium,
+  });
+  days.value[idx] = updated;
+  if (selectedDay.value?.id === updated.id) {
+    selectedDay.value = updated;
+  }
 };
 
 const deleteDay = async () => {
@@ -374,6 +434,9 @@ const mountTelegramLogin = () => {
     await loadMe();
     if (me.value) {
       await loadDays();
+      if (route.value === 'users') {
+        await loadUsers();
+      }
     }
   } catch (err) {
     console.error(err);
@@ -383,16 +446,32 @@ const mountTelegramLogin = () => {
 
 onMounted(async () => {
   document.documentElement.classList.toggle('dark', isDark.value);
+  syncRouteFromHash();
+  window.addEventListener('hashchange', syncRouteFromHash);
   await loadMe();
   if (me.value) {
     await loadDays();
+    if (route.value === 'users') {
+      await loadUsers();
+    }
   } else {
     mountTelegramLogin();
   }
 });
 
+onBeforeUnmount(() => {
+  window.removeEventListener('hashchange', syncRouteFromHash);
+});
+
 watch(isDark, (value) => {
   document.documentElement.classList.toggle('dark', value);
+});
+
+watch(route, async (next) => {
+  if (!me.value) return;
+  if (next === 'users') {
+    await loadUsers();
+  }
 });
 </script>
 

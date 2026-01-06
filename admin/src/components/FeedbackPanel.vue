@@ -14,7 +14,7 @@
         <n-card v-for="btn in buttons" :key="btn.id" size="small">
           <n-space vertical size="small">
             <n-select v-model:value="btn.type" :options="typeOptions" placeholder="type" />
-          <n-input v-model:value="btn.text" placeholder="text" class="rounded-lg" />
+            <n-input v-model:value="btn.text" placeholder="text" class="rounded-lg" />
             <n-space justify="end" size="small">
               <n-button size="small" @click="$emit('save-button', btn)">Сохранить</n-button>
               <n-button size="small" type="error" @click="$emit('delete-button', btn.id)">Удалить</n-button>
@@ -31,7 +31,7 @@
         <n-card v-for="msg in messages" :key="msg.id" size="small">
           <n-space vertical size="small">
             <n-select v-model:value="msg.type" :options="typeOptions" placeholder="type" />
-          <n-input v-model:value="msg.message_text" type="textarea" class="rounded-lg" />
+            <n-input v-model:value="msg.message_text" type="textarea" :autosize="{ minRows: 4 }" class="rounded-lg" />
             <n-space justify="end" size="small">
               <n-button size="small" @click="$emit('save-message', msg)">Сохранить</n-button>
               <n-button size="small" type="error" @click="$emit('delete-message', msg.id)">Удалить</n-button>
@@ -47,13 +47,6 @@
 import { NButton, NCard, NDivider, NH4, NInput, NSelect, NSpace } from 'naive-ui';
 import type { FeedbackButton, FeedbackMessage } from '../types';
 
-defineProps<{
-  selectedMessageId: number | null;
-  buttons: FeedbackButton[];
-  messages: FeedbackMessage[];
-  typeOptions: { label: string; value: string }[];
-}>();
-
 defineEmits<{
   (e: 'refresh'): void;
   (e: 'add-button'): void;
@@ -62,6 +55,12 @@ defineEmits<{
   (e: 'add-message'): void;
   (e: 'save-message', msg: FeedbackMessage): void;
   (e: 'delete-message', id: number): void;
+}>();
+defineProps<{
+  selectedMessageId: number | null;
+  buttons: FeedbackButton[];
+  messages: FeedbackMessage[];
+  typeOptions: { label: string; value: string }[];
 }>();
 </script>
 

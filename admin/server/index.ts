@@ -41,6 +41,17 @@ type AdminUser = {
   role: string;
 };
 
+type AppUser = {
+  id: number;
+  tg_user_id: number;
+  username: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  role: string;
+  created_at: string | null;
+  last_seen_at: string | null;
+};
+
 const buildDataCheckString = (data: Record<string, string | number>) => {
   const pairs = Object.keys(data)
     .filter((k) => k !== 'hash')
@@ -134,6 +145,13 @@ app.get('/auth/me', requireAdmin, (req: Request, res: Response) => {
 
 app.get('/api/days', requireAdmin, async (_req: Request, res: Response) => {
   const { rows } = await pool.query('SELECT * FROM bot_days ORDER BY day_number');
+  res.json(rows);
+});
+
+app.get('/api/users', requireAdmin, async (_req: Request, res: Response) => {
+  const { rows } = await pool.query<AppUser>(
+    'SELECT id, tg_user_id, username, first_name, last_name, role, created_at, last_seen_at FROM users ORDER BY id DESC',
+  );
   res.json(rows);
 });
 

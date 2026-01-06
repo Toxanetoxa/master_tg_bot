@@ -6,6 +6,17 @@ export type AdminUser = {
   role: string;
 };
 
+export type AppUser = {
+  id: number;
+  tg_user_id: number;
+  username: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  role: string;
+  created_at: string | null;
+  last_seen_at: string | null;
+};
+
 export type Day = {
   id: number;
   day_number: number;
