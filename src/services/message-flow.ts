@@ -2,7 +2,11 @@ import { Bot, InlineKeyboard } from 'npm:grammy@1.32.0';
 import { Day } from '../types/messages.ts';
 import { AppConfig } from '../config.ts';
 import { StateStore, UserState } from '../types/state.ts';
-import { deleteUserStateByTgUserId, upsertUserStateByTgUserId } from '../db/repositories.ts';
+import {
+  deleteUserStateByTgUserId,
+  hasActiveSubscriptionByTgUserId,
+  upsertUserStateByTgUserId,
+} from '../db/repositories.ts';
 
 type Dependencies = {
   bot: Bot;
@@ -12,6 +16,15 @@ type Dependencies = {
 };
 
 const getDayData = (deps: Dependencies, day: number) => deps.messages.get(day);
+const buildDayOrder = (deps: Dependencies) => {
+  return Array.from(deps.messages.entries())
+    .map(([dayNumber, day]) => ({ dayNumber, isPremium: day.isPremium }))
+    .sort((a, b) => {
+      if (a.isPremium === b.isPremium) return a.dayNumber - b.dayNumber;
+      return a.isPremium ? 1 : -1;
+    })
+    .map((d) => d.dayNumber);
+};
 
 const buildKeyboard = (feedbackButtons: { type: string; text: string }[]) => {
   const kb = new InlineKeyboard();
@@ -23,6 +36,20 @@ const buildKeyboard = (feedbackButtons: { type: string; text: string }[]) => {
 };
 
 export const createMessageFlow = (deps: Dependencies) => {
+  const orderedDays = buildDayOrder(deps);
+  const getNextDayNumber = (currentDay: number) => {
+    const idx = orderedDays.indexOf(currentDay);
+    if (idx < 0) return null;
+    return orderedDays[idx + 1] ?? null;
+  };
+
+  const sendPremiumUpsell = async (chatId: number) => {
+    await deps.bot.api.sendMessage(
+      chatId,
+      'Этот день доступен только по подписке. Оформите подписку, чтобы продолжить.',
+    );
+  };
+
   const advanceState = async (chatId: number) => {
     const state = deps.state.get(chatId);
     if (!state) return;
@@ -37,15 +64,23 @@ export const createMessageFlow = (deps: Dependencies) => {
       return;
     }
 
-    const nextDay = state.day + 1;
-    const nextDayData = getDayData(deps, nextDay);
+    const nextDay = getNextDayNumber(state.day);
+    if (nextDay === null) {
+      deps.state.delete(chatId);
+      await deleteUserStateByTgUserId(chatId);
+      return;
+    }
 
+    const nextDayData = getDayData(deps, nextDay);
     if (nextDayData) {
       if (nextDayData.isPremium) {
-        const nextState: UserState = { day: nextDay, messageIndex: 0, status: 'scheduled' };
-        deps.state.set(chatId, nextState);
-        await upsertUserStateByTgUserId(chatId, nextState);
-        return;
+        const hasAccess = await hasActiveSubscriptionByTgUserId(chatId);
+        if (!hasAccess) {
+          await sendPremiumUpsell(chatId);
+          deps.state.delete(chatId);
+          await deleteUserStateByTgUserId(chatId);
+          return;
+        }
       }
       const status: UserState['status'] = deps.config.mode === 'prod' ? 'scheduled' : 'active';
       const nextState: UserState = { day: nextDay, messageIndex: 0, status };
@@ -97,15 +132,26 @@ export const createMessageFlow = (deps: Dependencies) => {
       return;
     }
     if (dayData.isPremium) {
-      await deps.bot.api.sendMessage(
-        chatId,
-        'Этот день доступен только по подписке (проверка доступа пока не реализована).',
-      );
-      return;
+      const hasAccess = await hasActiveSubscriptionByTgUserId(chatId);
+      if (!hasAccess) {
+        await sendPremiumUpsell(chatId);
+        deps.state.delete(chatId);
+        await deleteUserStateByTgUserId(chatId);
+        return;
+      }
     }
     deps.state.set(chatId, { day, messageIndex: 0, status: 'active' });
     await upsertUserStateByTgUserId(chatId, { day, messageIndex: 0, status: 'active' });
     await sendChain(chatId);
+  };
+
+  const startFirstDay = async (chatId: number) => {
+    const firstDay = orderedDays[0];
+    if (firstDay === undefined) {
+      await deps.bot.api.sendMessage(chatId, 'Нет доступных дней для старта.');
+      return;
+    }
+    await startDayNow(chatId, firstDay);
   };
 
   const processFeedback = async (chatId: number, type: string) => {
@@ -134,6 +180,7 @@ export const createMessageFlow = (deps: Dependencies) => {
   return {
     advanceState,
     startDayNow,
+    startFirstDay,
     processFeedback,
     handleMessage,
   };

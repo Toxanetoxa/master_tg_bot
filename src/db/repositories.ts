@@ -196,3 +196,21 @@ export const deleteUserStateByTgUserId = async (tgUserId: number) => {
   if (!result.length) return;
   await db.delete(userState).where(eq(userState.userId, result[0].id));
 };
+
+export const hasActiveSubscriptionByTgUserId = async (tgUserId: number) => {
+  const rows = await sql<{ status: string; plan: string; end_at: Date | string | null }[]>`
+    SELECT status, plan, end_at
+    FROM subscriptions s
+    JOIN users u ON u.id = s.user_id
+    WHERE u.tg_user_id = ${tgUserId}
+    ORDER BY s.id DESC
+    LIMIT 1
+  `;
+  if (!rows.length) return false;
+  const sub = rows[0];
+  if (sub.status !== 'active') return false;
+  if (sub.plan !== 'premium') return false;
+  if (!sub.end_at) return true;
+  const endAt = sub.end_at instanceof Date ? sub.end_at : new Date(sub.end_at);
+  return endAt.getTime() > Date.now();
+};

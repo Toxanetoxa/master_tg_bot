@@ -18,7 +18,7 @@
 
         <template v-else>
           <div class="w-full px-4 pb-10">
-            <div v-if="route === 'editor'" class="grid grid-cols-1 gap-4 xl:grid-cols-[220px_minmax(0,1fr)_500px]">
+            <div v-if="route === 'editor'" class="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_6fr_2fr]">
               <n-layout-sider width="260" bordered content-style="padding: 12px;">
                 <DayList
                   v-model:search="daySearch"
@@ -477,8 +477,7 @@ watch(route, async (next) => {
 
 <style scoped>
 .app {
-  max-height: 100vh;
-  height: 100%;
+  min-height: 100vh;
 }
 .login {
   max-width: 420px;

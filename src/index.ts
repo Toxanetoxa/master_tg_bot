@@ -50,7 +50,7 @@ bot.command('start', async (ctx) => {
   const chatId = getChatId(ctx);
   if (!chatId) return;
   await ensureUser(ctx);
-  await flow.startDayNow(chatId, 0);
+  await flow.startFirstDay(chatId);
 });
 
 bot.hears(/^\/test_day_(\d+)$/i, async (ctx) => {
