@@ -1,0 +1,14 @@
+{
+  "name": "node_bot",
+  "version": "1.0.0",
+  "description": "Telegram bot starter powered by Deno and TypeScript",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {},
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.20.0",
+  "dependencies": {},
+  "devDependencies": {}
+}

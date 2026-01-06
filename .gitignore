@@ -1,0 +1,26 @@
+# OS
+.DS_Store
+
+# Logs
+*.log
+
+# Deno
+.deno
+
+# Node
+node_modules/
+.pnpm-store/
+
+# Build
+/dist/
+/admin/dist/
+
+# Env
+.env
+.env.*
+*/.env
+!/.env.example
+!/admin/.env.example
+
+# IDE
+.vscode/

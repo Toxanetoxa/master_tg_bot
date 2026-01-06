@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-neutral-50 text-neutral-900;
+  font-size: 20px;
+}
+
+.n-input-wrapper {
+  border-radius: 8px;
+}
+
+.dark body {
+  @apply bg-neutral-950 text-neutral-100;
+}
+
+.dark .n-input__textarea-el {
+  background-color: #0b0b0b;
+  color: #f3f4f6;
+}
+
+.dark .n-input__textarea-el::selection {
+  background-color: #374151;
+  color: #ffffff;
+}
+
+.dark .n-card {
+  background-color: #0f0f10;
+}
+
+.dark .n-card .n-card__content {
+  color: #e5e7eb;
+}
+
+.dark .n-card ::selection {
+  background-color: #374151;
+  color: #ffffff;
+}
+
+.dark .n-input-wrapper {
+  background-color: #1f2937;
+}
+
+.dark .n-input__textarea-el,
+.dark .n-input__input-el {
+  background-color: transparent;
+  color: #f3f4f6;
+}
+
+.dark .n-input {
+  background-color: transparent;
+}
+
+.dark .n-list-item.active {
+  background-color: #1f2937;
+  color: #f9fafb;
+}
