@@ -69,7 +69,12 @@ watch(
 );
 
 const onEnd = () => {
-  emit('reorder', internalList.value.map((m) => m.id));
+  const currentOrder = props.messages.map((m) => m.id);
+  const nextOrder = internalList.value.map((m) => m.id);
+  const isSame = currentOrder.length === nextOrder.length &&
+    currentOrder.every((id, idx) => id === nextOrder[idx]);
+  if (isSame) return;
+  emit('reorder', nextOrder);
 };
 </script>
 
@@ -88,7 +93,23 @@ const onEnd = () => {
   margin-bottom: 6px;
 }
 .drag-ghost {
-  opacity: 0.4;
+  background: rgba(99, 102, 241, 0.08);
+  border: 2px dashed rgba(99, 102, 241, 0.6);
+  min-height: 140px;
+  position: relative;
+}
+.drag-ghost * {
+  visibility: hidden;
+}
+.drag-ghost::before {
+  content: 'Отпустите, чтобы вставить здесь';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #6366f1;
+  font-weight: 600;
+  letter-spacing: 0.2px;
 }
 .drag-chosen {
   outline: 2px dashed #999;
