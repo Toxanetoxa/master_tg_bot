@@ -1,0 +1,5 @@
+version: "2"
+tunnels:
+  webhook:
+    addr: http://bot:8080
+    proto: http

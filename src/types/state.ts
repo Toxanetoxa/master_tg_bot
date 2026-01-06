@@ -1,4 +1,4 @@
-export type UserStatus = 'active' | 'scheduled';
+export type UserStatus = 'active' | 'scheduled' | 'blocked';
 
 export type UserState = {
   day: number;

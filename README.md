@@ -1,12 +1,12 @@
 # Telegram Bot (Deno + grammY)
 
-Проект Telegram-бота на Deno + TypeScript с хранением состояния и контента в PostgreSQL + админка для контента.
+Проект Telegram-бота на Deno + TypeScript с хранением состояния и контента в PostgreSQL + админка для контента и оплатой через ЮKassa.
 
 ## Требования
 
 - Deno v2+
 - Node.js 20+ (для админки)
-- Docker (Postgres, bot, admin, ngrok)
+- Docker (Postgres, bot, admin, ngrok) — опционально
 
 ## Быстрый старт (локально, без Docker)
 
@@ -42,7 +42,7 @@
    ```bash
    make db-init
    ```
-4. Админка доступна на `http://localhost:5173`.
+4. Админка доступна на `http://localhost:5173` (если сервис admin включен).
 
 ## Админка и Telegram Login
 
@@ -53,15 +53,30 @@
   ADMIN_AUTH_DISABLED=true
   ```
 
-## ngrok (локальная авторизация через Telegram)
+## ngrok (локальная авторизация через Telegram и webhooks)
 
 1. Укажи `NGROK_AUTHTOKEN` в `.env`.
 2. Запусти Docker (`make docker-up`).
-3. Получи публичный URL:
+3. Получи публичный URL для нужного туннеля:
    ```bash
    docker compose logs -f ngrok
    ```
-4. Укажи домен в BotFather через `/setdomain`.
+4. Укажи домен в BotFather через `/setdomain` (для Telegram Login).
+5. Для webhooks ЮKassa используй URL туннеля `/webhooks/yookassa`.
+
+## Платежи (ЮKassa)
+
+Бот создает платеж и отправляет пользователю кнопку оплаты. После оплаты ЮKassa присылает webhook.
+
+Endpoints:
+- `POST /webhooks/yookassa` — обработка событий оплаты.
+- `GET /return` — страница возврата в Telegram.
+
+Минимальные шаги:
+1. Заполни `YOOKASSA_SHOP_ID`, `YOOKASSA_SECRET_KEY`, `YOOKASSA_RETURN_URL`, `YOOKASSA_WEBHOOK_PORT`.
+2. Запусти бота и HTTP сервер (порт из `YOOKASSA_WEBHOOK_PORT`).
+3. В ЮKassa добавь webhook URL: `https://<domain>/webhooks/yookassa`.
+4. В `YOOKASSA_RETURN_URL` укажи `https://<domain>/return`.
 
 ## Переменные окружения
 
@@ -70,17 +85,23 @@
 Обязательные:
 
 - `BOT_TOKEN` — токен Telegram бота.
+- `DATABASE_URL` — строка подключения к Postgres.
 
 Дополнительные:
 
 - `BOT_MODE` — `dev` или `prod` (по умолчанию `dev`).
 - `DAILY_SEND_TIME` — время ежедневной отправки `HH:MM`.
-- `DATABASE_URL` — строка подключения к Postgres.
 - `HYDRATE_STATE` — `true/false`, восстанавливать состояние из БД.
 - `POSTGRES_*` — параметры Postgres для docker-compose.
 - `ADMIN_COOKIE_SECRET` — секрет подписи сессий админки.
 - `VITE_TG_BOT_USERNAME` — username бота (для Telegram Login).
 - `NGROK_AUTHTOKEN` — токен ngrok.
+- `BOT_USERNAME` — username бота (для return_url страницы).
+- `YOOKASSA_SHOP_ID` — идентификатор магазина ЮKassa.
+- `YOOKASSA_SECRET_KEY` — секретный ключ ЮKassa.
+- `YOOKASSA_RETURN_URL` — URL страницы возврата после оплаты.
+- `YOOKASSA_WEBHOOK_PORT` — порт HTTP сервера для webhooks.
+- `YOOKASSA_WEBHOOK_AUTH` — опциональная авторизация webhook (можно пустым).
 
 ## База данных
 
@@ -137,3 +158,4 @@
 - **Blocked request (Vite allowedHosts)** — добавь домен ngrok в `admin/vite.config.ts` и перезапусти dev‑сервер.
 - **403 в админке** — у пользователя в `users.role` должно быть `admin` (или включи `ADMIN_AUTH_DISABLED=true` в dev).
 - **409 step_index** — номер шага уже занят; измени `step_index`.
+- **Нет webhook-ов ЮKassa** — проверь `YOOKASSA_WEBHOOK_PORT`, актуальный ngrok URL и отсутствие `YOOKASSA_WEBHOOK_AUTH` (если не используешь).

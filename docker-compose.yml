@@ -26,32 +26,36 @@ services:
     depends_on:
       - postgres
 
-  admin:
-    build:
-      context: .
-      dockerfile: admin/Dockerfile
-    container_name: node_bot_admin
-    restart: unless-stopped
-    ports:
-      - "5173:5173"
-    environment:
-      DATABASE_URL: postgres://bot:bot@postgres:5432/bot
-      TELEGRAM_BOT_TOKEN: ${BOT_TOKEN}
-      ADMIN_COOKIE_SECRET: ${ADMIN_COOKIE_SECRET:-change-me}
-      VITE_TG_BOT_USERNAME: ${VITE_TG_BOT_USERNAME}
-    depends_on:
-      - postgres
+  # admin:
+  #   build:
+  #     context: .
+  #     dockerfile: admin/Dockerfile
+  #   container_name: node_bot_admin
+  #   restart: unless-stopped
+  #   ports:
+  #     - "5173:5173"
+  #   environment:
+  #     DATABASE_URL: postgres://bot:bot@postgres:5432/bot
+  #     TELEGRAM_BOT_TOKEN: ${BOT_TOKEN}
+  #     ADMIN_COOKIE_SECRET: ${ADMIN_COOKIE_SECRET:-change-me}
+  #     VITE_TG_BOT_USERNAME: ${VITE_TG_BOT_USERNAME}
+  #   depends_on:
+  #     - postgres
 
   ngrok:
     image: ngrok/ngrok:alpine
     container_name: node_bot_ngrok
     restart: unless-stopped
     depends_on:
-      - admin
+      - bot
     environment:
       NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
       VITE_TG_BOT_USERNAME: cards030_bot
-    command: http admin:5173 --log=stdout
+    volumes:
+      - ./ngrok.yml:/etc/ngrok.yml:ro
+    ports:
+      - "4040:4040"
+    command: start --all --config /etc/ngrok.yml --log=stdout
 
 volumes:
   postgres_data:

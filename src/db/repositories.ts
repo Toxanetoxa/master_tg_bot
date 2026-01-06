@@ -103,7 +103,11 @@ export const getAllUserStates = async () => {
     .innerJoin(users, eq(userState.userId, users.id));
   return rows.map((row) => ({
     ...row,
-    status: (row.status === 'scheduled' ? 'scheduled' : 'active') as UserStatus,
+    status: (row.status === 'scheduled'
+      ? 'scheduled'
+      : row.status === 'blocked'
+        ? 'blocked'
+        : 'active') as UserStatus,
   }));
 };
 
@@ -181,7 +185,7 @@ export const loadMessageDays = async () => {
 export const upsertUserStateByTgUserId = async (tgUserId: number, state: {
   day: number;
   messageIndex: number;
-  status: 'active' | 'scheduled';
+  status: UserStatus;
 }) => {
   const user = await getOrCreateUser(tgUserId);
   return await upsertUserState(user.id, state);
@@ -195,6 +199,11 @@ export const deleteUserStateByTgUserId = async (tgUserId: number) => {
     .limit(1);
   if (!result.length) return;
   await db.delete(userState).where(eq(userState.userId, result[0].id));
+};
+
+export const getUserStateByUserId = async (userId: number) => {
+  const rows = await db.select().from(userState).where(eq(userState.userId, userId)).limit(1);
+  return rows[0] ?? null;
 };
 
 export const hasActiveSubscriptionByTgUserId = async (tgUserId: number) => {
@@ -213,4 +222,60 @@ export const hasActiveSubscriptionByTgUserId = async (tgUserId: number) => {
   if (!sub.end_at) return true;
   const endAt = sub.end_at instanceof Date ? sub.end_at : new Date(sub.end_at);
   return endAt.getTime() > Date.now();
+};
+
+export const createPaymentForUser = async (userId: number, data: {
+  provider: string;
+  status: string;
+  amount: number;
+  currency: string;
+  paymentId: string;
+  idempotencyKey: string;
+}) => {
+  const rows = await sql<{ id: number }[]>`
+    INSERT INTO payments (user_id, provider, status, amount, currency, payment_id, idempotency_key)
+    VALUES (
+      ${userId},
+      ${data.provider},
+      ${data.status},
+      ${data.amount},
+      ${data.currency},
+      ${data.paymentId},
+      ${data.idempotencyKey}
+    )
+    RETURNING id
+  `;
+  return rows[0] ?? null;
+};
+
+export const setPaymentStatusByPaymentId = async (paymentId: string, status: string) => {
+  const rows = await sql<{ id: number; user_id: number }[]>`
+    UPDATE payments
+    SET status = ${status}, updated_at = NOW()
+    WHERE payment_id = ${paymentId} AND status IS DISTINCT FROM ${status}
+    RETURNING id, user_id
+  `;
+  return rows[0] ?? null;
+};
+
+export const createSubscriptionForPayment = async (userId: number, paymentDbId: number) => {
+  const rows = await sql<{ id: number }[]>`
+    INSERT INTO subscriptions (user_id, status, plan, start_at, end_at, payment_id)
+    SELECT ${userId}, 'active', 'premium', NOW(), NULL, ${paymentDbId}
+    WHERE NOT EXISTS (
+      SELECT 1 FROM subscriptions WHERE payment_id = ${paymentDbId}
+    )
+    RETURNING id
+  `;
+  return rows[0] ?? null;
+};
+
+export const getTgUserIdByUserId = async (userId: number) => {
+  const rows = await sql<{ tg_user_id: number }[]>`
+    SELECT tg_user_id
+    FROM users
+    WHERE id = ${userId}
+    LIMIT 1
+  `;
+  return rows[0]?.tg_user_id ?? null;
 };

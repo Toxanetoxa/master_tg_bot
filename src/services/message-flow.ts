@@ -7,6 +7,7 @@ import {
   hasActiveSubscriptionByTgUserId,
   upsertUserStateByTgUserId,
 } from '../db/repositories.ts';
+import { buildUpsellText, createPaymentLink, getPaymentButtonText } from './payments.ts';
 
 type Dependencies = {
   bot: Bot;
@@ -44,10 +45,16 @@ export const createMessageFlow = (deps: Dependencies) => {
   };
 
   const sendPremiumUpsell = async (chatId: number) => {
-    await deps.bot.api.sendMessage(
-      chatId,
-      'Этот день доступен только по подписке. Оформите подписку, чтобы продолжить.',
-    );
+    const text = buildUpsellText();
+    const buttonText = getPaymentButtonText();
+    try {
+      const paymentUrl = await createPaymentLink(chatId);
+      const kb = new InlineKeyboard().url(buttonText, paymentUrl);
+      await deps.bot.api.sendMessage(chatId, text, { reply_markup: kb });
+    } catch (err) {
+      console.error('Failed to create YooKassa payment link', err);
+      await deps.bot.api.sendMessage(chatId, text);
+    }
   };
 
   const advanceState = async (chatId: number) => {
@@ -77,8 +84,9 @@ export const createMessageFlow = (deps: Dependencies) => {
         const hasAccess = await hasActiveSubscriptionByTgUserId(chatId);
         if (!hasAccess) {
           await sendPremiumUpsell(chatId);
-          deps.state.delete(chatId);
-          await deleteUserStateByTgUserId(chatId);
+          const blockedState: UserState = { day: nextDay, messageIndex: 0, status: 'blocked' };
+          deps.state.set(chatId, blockedState);
+          await upsertUserStateByTgUserId(chatId, blockedState);
           return;
         }
       }
@@ -135,8 +143,9 @@ export const createMessageFlow = (deps: Dependencies) => {
       const hasAccess = await hasActiveSubscriptionByTgUserId(chatId);
       if (!hasAccess) {
         await sendPremiumUpsell(chatId);
-        deps.state.delete(chatId);
-        await deleteUserStateByTgUserId(chatId);
+        const blockedState: UserState = { day, messageIndex: 0, status: 'blocked' };
+        deps.state.set(chatId, blockedState);
+        await upsertUserStateByTgUserId(chatId, blockedState);
         return;
       }
     }
