@@ -152,6 +152,6 @@ export const handleYooKassaWebhook = async (
 };
 type BotLike = {
   api: {
-    sendMessage: (chatId: number, text: string) => Promise<void>;
+    sendMessage: (chatId: number, text: string) => Promise<unknown>;
   };
 };

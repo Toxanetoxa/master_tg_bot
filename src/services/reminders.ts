@@ -21,7 +21,7 @@ const DEFAULT_REMINDERS = [
 
 type BotLike = {
   api: {
-    sendMessage: (chatId: number, text: string) => Promise<void>;
+    sendMessage: (chatId: number, text: string) => Promise<unknown>;
   };
 };
 

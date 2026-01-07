@@ -1,5 +1,4 @@
 import { assertEquals, assertRejects } from 'jsr:@std/assert@0.224.0';
-import { createPaymentLink, handleYooKassaWebhook } from '../src/services/payments.ts';
 import type { YooKassaWebhookEvent } from '../src/types/payments.ts';
 
 type BotStub = {
@@ -24,7 +23,36 @@ const buildFetchResponse = (body: unknown) => {
   return new Response(JSON.stringify(body), { status: 200 });
 };
 
+const setRequiredEnv = () => {
+  const keys = [
+    'BOT_TOKEN',
+    'BOT_MODE',
+    'DAILY_SEND_TIME',
+    'HYDRATE_STATE',
+    'POSTGRES_DB',
+    'POSTGRES_USER',
+    'POSTGRES_PASSWORD',
+    'POSTGRES_PORT',
+    'DATABASE_URL',
+    'ADMIN_COOKIE_SECRET',
+    'NGROK_AUTHTOKEN',
+    'VITE_TG_BOT_USERNAME',
+    'BOT_USERNAME',
+    'YOOKASSA_SHOP_ID',
+    'YOOKASSA_SECRET_KEY',
+    'YOOKASSA_WEBHOOK_PORT',
+    'YOOKASSA_RETURN_URL',
+    'REMINDER_DELAY_HOURS',
+  ];
+  for (const key of keys) {
+    if (!Deno.env.get(key)) Deno.env.set(key, '');
+  }
+  Deno.env.set('DATABASE_URL', 'postgres://bot:bot@localhost:5432/bot');
+};
+
 Deno.test('createPaymentLink returns confirmation url and records payment', async () => {
+  setRequiredEnv();
+  const { createPaymentLink } = await import('../src/services/payments.ts');
   let recorded: { paymentId: string; status: string } | null = null;
   const url = await createPaymentLink(123, {
     env: { shopId: 'shop', secretKey: 'secret', returnUrl: 'https://example.com/return' },
@@ -62,6 +90,8 @@ Deno.test('createPaymentLink returns confirmation url and records payment', asyn
 });
 
 Deno.test('createPaymentLink throws when env is missing', async () => {
+  setRequiredEnv();
+  const { createPaymentLink } = await import('../src/services/payments.ts');
   await assertRejects(
     () => createPaymentLink(123, { env: { shopId: '', secretKey: '', returnUrl: undefined } }),
     Error,
@@ -69,6 +99,8 @@ Deno.test('createPaymentLink throws when env is missing', async () => {
 });
 
 Deno.test('handleYooKassaWebhook sends success message and resumes blocked day', async () => {
+  setRequiredEnv();
+  const { handleYooKassaWebhook } = await import('../src/services/payments.ts');
   const sent: Array<{ chatId: number; text: string }> = [];
   const started: number[] = [];
   const bot: BotStub = {

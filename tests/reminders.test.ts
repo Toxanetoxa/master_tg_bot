@@ -1,5 +1,4 @@
 import { assertEquals } from 'jsr:@std/assert@0.224.0';
-import { processDueReminders } from '../src/services/reminders.ts';
 import type { Day } from '../src/types/messages.ts';
 
 type BotStub = {
@@ -8,7 +7,36 @@ type BotStub = {
   };
 };
 
+const setRequiredEnv = () => {
+  const keys = [
+    'BOT_TOKEN',
+    'BOT_MODE',
+    'DAILY_SEND_TIME',
+    'HYDRATE_STATE',
+    'POSTGRES_DB',
+    'POSTGRES_USER',
+    'POSTGRES_PASSWORD',
+    'POSTGRES_PORT',
+    'DATABASE_URL',
+    'ADMIN_COOKIE_SECRET',
+    'NGROK_AUTHTOKEN',
+    'VITE_TG_BOT_USERNAME',
+    'BOT_USERNAME',
+    'YOOKASSA_SHOP_ID',
+    'YOOKASSA_SECRET_KEY',
+    'YOOKASSA_WEBHOOK_PORT',
+    'YOOKASSA_RETURN_URL',
+    'REMINDER_DELAY_HOURS',
+  ];
+  for (const key of keys) {
+    if (!Deno.env.get(key)) Deno.env.set(key, '');
+  }
+  Deno.env.set('DATABASE_URL', 'postgres://bot:bot@localhost:5432/bot');
+};
+
 Deno.test('processDueReminders sends custom reminder text', async () => {
+  setRequiredEnv();
+  const { processDueReminders } = await import('../src/services/reminders.ts');
   const sent: Array<{ chatId: number; text: string }> = [];
   const bot: BotStub = {
     api: {

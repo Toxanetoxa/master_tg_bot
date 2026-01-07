@@ -1,4 +1,6 @@
-import 'jsr:@std/dotenv@0.224.0/load';
+import { loadSync } from 'jsr:@std/dotenv@0.224.0';
+
+loadSync({ export: true, allowEmptyValues: true });
 
 export type AppMode = 'dev' | 'prod';
 
