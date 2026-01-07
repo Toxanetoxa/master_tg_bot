@@ -52,6 +52,19 @@ type AppUser = {
   last_seen_at: string | null;
 };
 
+type PaymentRow = {
+  id: number;
+  payment_id: string;
+  amount: number;
+  currency: string;
+  status: string;
+  created_at: string;
+  tg_user_id: number | null;
+  username: string | null;
+  first_name: string | null;
+  last_name: string | null;
+};
+
 const buildDataCheckString = (data: Record<string, string | number>) => {
   const pairs = Object.keys(data)
     .filter((k) => k !== 'hash')
@@ -153,6 +166,55 @@ app.get('/api/users', requireAdmin, async (_req: Request, res: Response) => {
     'SELECT id, tg_user_id, username, first_name, last_name, role, created_at, last_seen_at FROM users ORDER BY id DESC',
   );
   res.json(rows);
+});
+
+app.get('/api/payments', requireAdmin, async (_req: Request, res: Response) => {
+  const { rows } = await pool.query<PaymentRow>(
+    `SELECT p.id, p.payment_id, p.amount, p.currency, p.status, p.created_at,
+            u.tg_user_id, u.username, u.first_name, u.last_name
+     FROM payments p
+     LEFT JOIN users u ON u.id = p.user_id
+     ORDER BY p.created_at DESC
+     LIMIT 200`,
+  );
+  res.json(rows);
+});
+
+app.get('/api/analytics', requireAdmin, async (_req: Request, res: Response) => {
+  const monthlyRevenue = await pool.query<{ month: string; total: number }>(
+    `SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS month,
+            COALESCE(SUM(amount), 0) AS total
+     FROM payments
+     WHERE status = 'succeeded'
+     GROUP BY 1
+     ORDER BY 1`,
+  );
+  const monthlySubscriptions = await pool.query<{ month: string; count: number }>(
+    `SELECT to_char(date_trunc('month', start_at), 'YYYY-MM') AS month,
+            COUNT(*) AS count
+     FROM subscriptions
+     WHERE status = 'active' AND plan = 'premium'
+     GROUP BY 1
+     ORDER BY 1`,
+  );
+  const dayProgress = await pool.query<{ day: number; count: number }>(
+    `SELECT day, COUNT(*) AS count
+     FROM user_state
+     GROUP BY day
+     ORDER BY day`,
+  );
+  const totals = await pool.query<{ revenue: number; subscriptions: number }>(
+    `SELECT
+       COALESCE((SELECT SUM(amount) FROM payments WHERE status = 'succeeded'), 0) AS revenue,
+       COALESCE((SELECT COUNT(*) FROM subscriptions WHERE status = 'active' AND plan = 'premium'), 0) AS subscriptions`,
+  );
+
+  res.json({
+    monthlyRevenue: monthlyRevenue.rows,
+    monthlySubscriptions: monthlySubscriptions.rows,
+    dayProgress: dayProgress.rows,
+    totals: totals.rows[0],
+  });
 });
 
 app.post('/api/days', requireAdmin, async (req: Request, res: Response) => {

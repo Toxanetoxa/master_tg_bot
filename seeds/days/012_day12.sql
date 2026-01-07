@@ -1,6 +1,6 @@
 -- Day 12
 INSERT INTO bot_days (day_number, is_premium)
-VALUES (12, false)
+VALUES (12, true)
 ON CONFLICT (day_number) DO NOTHING;
 
 INSERT INTO bot_messages (day_id, step_index, message_text)

@@ -4,7 +4,7 @@ import {
   createPaymentForUser,
   createSubscriptionForPayment,
   getOrCreateUser,
-  getUserStateByUserId,
+  getUserStateByTgUserId,
   getTgUserIdByUserId,
   setPaymentStatusByPaymentId,
 } from '../db/repositories.ts';
@@ -121,8 +121,11 @@ export const handleYooKassaWebhook = async (
   );
 
   if (startDayNow) {
-    const state = await getUserStateByUserId(paymentRow.user_id);
-    if (state?.status === 'blocked') {
+    const stateRaw = await getUserStateByTgUserId(tgUserId);
+    const state = stateRaw && 'user_state' in (stateRaw as Record<string, unknown>)
+      ? (stateRaw as { user_state: { status: string; day: number } }).user_state
+      : (stateRaw as { status?: string; day?: number } | null);
+    if (state?.status === 'blocked' && typeof state.day === 'number') {
       await startDayNow(tgUserId, state.day);
     }
   }

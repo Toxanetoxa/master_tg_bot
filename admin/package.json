@@ -9,6 +9,7 @@
     "preview": "vite preview --host 0.0.0.0 --port 5173"
   },
   "dependencies": {
+    "chart.js": "^4.4.3",
     "vuedraggable": "^4.1.0",
     "cookie-parser": "^1.4.6",
     "dotenv": "^16.4.5",

@@ -26,6 +26,14 @@
       >
         Пользователи
       </n-button>
+      <n-button
+        size="small"
+        :type="route === 'payments' ? 'primary' : 'default'"
+        secondary
+        @click="$emit('navigate', 'payments')"
+      >
+        Платежи
+      </n-button>
     </div>
     <div class="user">
       <span class="theme-label">Тема</span>
@@ -42,12 +50,12 @@ import type { AdminUser } from '../types';
 
 defineProps<{
   me: AdminUser | null;
-  route: 'editor' | 'premium-days' | 'users';
+  route: 'editor' | 'premium-days' | 'users' | 'payments';
 }>();
 
 defineEmits<{
   (e: 'logout'): void;
-  (e: 'navigate', route: 'editor' | 'premium-days' | 'users'): void;
+  (e: 'navigate', route: 'editor' | 'premium-days' | 'users' | 'payments'): void;
 }>();
 
 const model = defineModel<boolean>('isDark', { required: true });

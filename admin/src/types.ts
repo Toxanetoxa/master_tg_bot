@@ -17,6 +17,26 @@ export type AppUser = {
   last_seen_at: string | null;
 };
 
+export type PaymentRow = {
+  id: number;
+  payment_id: string;
+  amount: number;
+  currency: string;
+  status: string;
+  created_at: string;
+  tg_user_id: number | null;
+  username: string | null;
+  first_name: string | null;
+  last_name: string | null;
+};
+
+export type AnalyticsResponse = {
+  monthlyRevenue: { month: string; total: number }[];
+  monthlySubscriptions: { month: string; count: number }[];
+  dayProgress: { day: number; count: number }[];
+  totals: { revenue: number; subscriptions: number };
+};
+
 export type Day = {
   id: number;
   day_number: number;

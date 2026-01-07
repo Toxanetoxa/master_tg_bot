@@ -72,14 +72,19 @@
                 />
               </n-layout-sider>
             </div>
-            <div v-else class="max-w-[900px]">
+            <div v-else class="max-w-[900px] mx-auto">
               <PremiumDaysPage v-if="route === 'premium-days'" :days="days" @toggle-day-premium="toggleDayPremium" />
               <UsersPage
-                v-else
+                v-else-if="route === 'users'"
                 :users="users"
                 :selected-user-id="selectedUserId"
                 v-model:search="userSearch"
                 @select="selectUser"
+              />
+              <PaymentsPage
+                v-else
+                :payments="payments"
+                :analytics="analytics"
               />
             </div>
           </div>
@@ -100,11 +105,13 @@ import { apiDelete, apiGet, apiPost, apiPut } from './api';
 import type {
   AdminUser,
   AppUser,
+  AnalyticsResponse,
   Day,
   FeedbackButton,
   FeedbackMessage,
   FeedbackResponse,
   Message,
+  PaymentRow,
 } from './types';
 import HeaderBar from './components/HeaderBar.vue';
 import LoginCard from './components/LoginCard.vue';
@@ -116,6 +123,7 @@ import BulkModal from './components/BulkModal.vue';
 import SearchBar from './components/SearchBar.vue';
 import PremiumDaysPage from './components/PremiumDaysPage.vue';
 import UsersPage from './components/UsersPage.vue';
+import PaymentsPage from './components/PaymentsPage.vue';
 
 const me = ref<AdminUser | null>(null);
 const days = ref<Day[]>([]);
@@ -129,6 +137,13 @@ const feedbackMessages = ref<FeedbackMessage[]>([]);
 const feedbackMessageIds = ref<number[]>([]);
 const users = ref<AppUser[]>([]);
 const selectedUserId = ref<number | null>(null);
+const payments = ref<PaymentRow[]>([]);
+const analytics = ref<AnalyticsResponse>({
+  monthlyRevenue: [],
+  monthlySubscriptions: [],
+  dayProgress: [],
+  totals: { revenue: 0, subscriptions: 0 },
+});
 const messageIdsWithFeedback = computed(() => {
   return new Set(feedbackMessageIds.value);
 });
@@ -144,7 +159,7 @@ const theme = computed(() => (isDark.value ? darkTheme : null));
 const daySearch = ref('');
 const messageSearch = ref('');
 const userSearch = ref('');
-const route = ref<'editor' | 'premium-days' | 'users'>('editor');
+const route = ref<'editor' | 'premium-days' | 'users' | 'payments'>('editor');
 
 const sortMessages = () => {
   messages.value = [...messages.value].sort((a, b) => a.step_index - b.step_index);
@@ -184,17 +199,21 @@ const syncRouteFromHash = () => {
     route.value = 'premium-days';
   } else if (hash === 'users') {
     route.value = 'users';
+  } else if (hash === 'payments') {
+    route.value = 'payments';
   } else {
     route.value = 'editor';
   }
 };
 
-const setRoute = (next: 'editor' | 'premium-days' | 'users') => {
+const setRoute = (next: 'editor' | 'premium-days' | 'users' | 'payments') => {
   route.value = next;
   if (next === 'premium-days') {
     window.location.hash = '#premium-days';
   } else if (next === 'users') {
     window.location.hash = '#users';
+  } else if (next === 'payments') {
+    window.location.hash = '#payments';
   } else {
     window.location.hash = '';
   }
@@ -206,6 +225,14 @@ const loadDays = async () => {
 
 const loadUsers = async () => {
   users.value = await apiGet<AppUser[]>('/api/users');
+};
+
+const loadPayments = async () => {
+  payments.value = await apiGet<PaymentRow[]>('/api/payments');
+};
+
+const loadAnalytics = async () => {
+  analytics.value = await apiGet<AnalyticsResponse>('/api/analytics');
 };
 
 const selectUser = (id: number) => {
@@ -437,6 +464,10 @@ const mountTelegramLogin = () => {
       if (route.value === 'users') {
         await loadUsers();
       }
+      if (route.value === 'payments') {
+        await loadPayments();
+        await loadAnalytics();
+      }
     }
   } catch (err) {
     console.error(err);
@@ -453,6 +484,10 @@ onMounted(async () => {
     await loadDays();
     if (route.value === 'users') {
       await loadUsers();
+    }
+    if (route.value === 'payments') {
+      await loadPayments();
+      await loadAnalytics();
     }
   } else {
     mountTelegramLogin();
@@ -471,6 +506,10 @@ watch(route, async (next) => {
   if (!me.value) return;
   if (next === 'users') {
     await loadUsers();
+  }
+  if (next === 'payments') {
+    await loadPayments();
+    await loadAnalytics();
   }
 });
 </script>

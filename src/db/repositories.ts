@@ -83,7 +83,11 @@ export const upsertUserState = async (userId: number, state: {
 
 export const getUserStateByTgUserId = async (tgUserId: number) => {
   const result = await db
-    .select()
+    .select({
+      day: userState.day,
+      messageIndex: userState.messageIndex,
+      status: userState.status,
+    })
     .from(userState)
     .innerJoin(users, eq(userState.userId, users.id))
     .where(eq(users.tgUserId, tgUserId))
