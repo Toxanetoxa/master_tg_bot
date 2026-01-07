@@ -45,6 +45,23 @@
    ```
 4. Админка доступна на `http://localhost:5173` (если сервис admin включен).
 
+## Прод‑деплой (docker-compose.prod.yml)
+
+1. Заполни `.env.prod` (бот, БД, ЮKassa).
+2. Собери и запусти:
+   ```bash
+   make docker-prod-build
+   make docker-prod-up
+   ```
+3. Проверь логи:
+   ```bash
+   make docker-prod-logs
+   ```
+4. Примените миграции и сиды (если нужно):
+   ```bash
+   make db-init
+   ```
+
 ## Админка и Telegram Login
 
 - Для входа нужен Telegram Login Widget.
@@ -141,6 +158,9 @@ Endpoints:
 - `make fmt` — форматирование.
 - `make docker-up` / `make docker-down` — старт/стоп контейнеров.
 - `make docker-build` / `make docker-rebuild` — сборка образов.
+- `make docker-prod-up` / `make docker-prod-down` — старт/стоп `docker-compose.prod.yml`.
+- `make docker-prod-build` — сборка `docker-compose.prod.yml`.
+- `make docker-prod-logs` — логи `docker-compose.prod.yml`.
 - `make admin-rebuild` — пересборка только админки.
 - `make bot-logs` — логи контейнера бота.
 - `make admin-logs` — логи контейнера админки.

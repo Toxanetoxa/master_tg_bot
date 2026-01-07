@@ -1,4 +1,4 @@
-.PHONY: help docker-up docker-down docker-logs postgres-up postgres-down up down logs pg-up pg-down ps db-migrate db-reset db-psql db-seed db-init lint fmt start dev typecheck docker-build docker-rebuild bot-logs bot-shell admin-logs admin-rebuild
+.PHONY: help docker-up docker-down docker-logs postgres-up postgres-down up down logs pg-up pg-down ps db-migrate db-reset db-psql db-seed db-init lint fmt start dev typecheck docker-build docker-rebuild bot-logs bot-shell admin-logs admin-rebuild docker-prod-up docker-prod-down docker-prod-logs docker-prod-build
 
 help: ## Показать список доступных команд
 	@awk 'BEGIN {FS = ":.*##"; printf "Доступные команды:\n"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -23,6 +23,18 @@ docker-build: ## Собрать docker-образы
 
 docker-rebuild: ## Пересобрать docker-образы без кэша
 	docker compose build --no-cache
+
+docker-prod-up: ## Запустить docker-compose.prod.yml
+	docker compose -f docker-compose.prod.yml up -d
+
+docker-prod-down: ## Остановить docker-compose.prod.yml
+	docker compose -f docker-compose.prod.yml down
+
+docker-prod-logs: ## Логи docker-compose.prod.yml
+	docker compose -f docker-compose.prod.yml logs -f
+
+docker-prod-build: ## Собрать образы для docker-compose.prod.yml
+	docker compose -f docker-compose.prod.yml build
 
 ps: ## Показать статус docker-сервисов
 	docker compose ps
