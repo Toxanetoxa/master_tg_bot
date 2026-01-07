@@ -34,7 +34,7 @@ services:
     container_name: node_bot_admin
     restart: unless-stopped
     ports:
-      - "5173:5173"
+      - '5173:5173'
     environment:
       DATABASE_URL: postgres://bot:bot@postgres:5432/bot
       TELEGRAM_BOT_TOKEN: ${BOT_TOKEN}

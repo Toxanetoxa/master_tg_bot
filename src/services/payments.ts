@@ -1,4 +1,3 @@
-import { Bot } from 'npm:grammy@1.32.0';
 import { YooKassaCreatePaymentResponse, YooKassaWebhookEvent } from '../types/payments.ts';
 import {
   createPaymentForUser,
@@ -34,24 +33,34 @@ export const buildUpsellText = () => {
 export const getPaymentButtonText = () =>
   'Купить программу «30 дней разжигания страсти в отношениях»';
 
-const getYooKassaAuthHeader = () => {
-  const shopId = Deno.env.get('YOOKASSA_SHOP_ID') ?? '';
-  const secretKey = Deno.env.get('YOOKASSA_SECRET_KEY') ?? '';
-  if (!shopId || !secretKey) return null;
-  return `Basic ${btoa(`${shopId}:${secretKey}`)}`;
-};
-
-export const createPaymentLink = async (tgUserId: number) => {
-  const authHeader = getYooKassaAuthHeader();
-  const returnUrl = Deno.env.get('YOOKASSA_RETURN_URL');
+export const createPaymentLink = async (
+  tgUserId: number,
+  deps?: {
+    fetchFn?: typeof fetch;
+    getOrCreateUserFn?: typeof getOrCreateUser;
+    createPaymentForUserFn?: typeof createPaymentForUser;
+    env?: {
+      shopId?: string;
+      secretKey?: string;
+      returnUrl?: string;
+    };
+  },
+) => {
+  const fetchFn = deps?.fetchFn ?? fetch;
+  const getOrCreateUserFn = deps?.getOrCreateUserFn ?? getOrCreateUser;
+  const createPaymentForUserFn = deps?.createPaymentForUserFn ?? createPaymentForUser;
+  const shopId = deps?.env?.shopId ?? Deno.env.get('YOOKASSA_SHOP_ID') ?? '';
+  const secretKey = deps?.env?.secretKey ?? Deno.env.get('YOOKASSA_SECRET_KEY') ?? '';
+  const returnUrl = deps?.env?.returnUrl ?? Deno.env.get('YOOKASSA_RETURN_URL');
+  const authHeader = shopId && secretKey ? `Basic ${btoa(`${shopId}:${secretKey}`)}` : null;
   if (!authHeader || !returnUrl) {
     throw new Error('Missing YOOKASSA_SHOP_ID, YOOKASSA_SECRET_KEY, or YOOKASSA_RETURN_URL');
   }
 
-  const user = await getOrCreateUser(tgUserId);
+  const user = await getOrCreateUserFn(tgUserId);
   const idempotencyKey = crypto.randomUUID();
 
-  const response = await fetch('https://api.yookassa.ru/v3/payments', {
+  const response = await fetchFn('https://api.yookassa.ru/v3/payments', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -85,7 +94,7 @@ export const createPaymentLink = async (tgUserId: number) => {
     throw new Error('Missing confirmation URL from YooKassa');
   }
 
-  await createPaymentForUser(user.id, {
+  await createPaymentForUserFn(user.id, {
     provider: 'yookassa',
     status: data.status,
     amount: PRICE_RUB,
@@ -98,21 +107,35 @@ export const createPaymentLink = async (tgUserId: number) => {
 };
 
 export const handleYooKassaWebhook = async (
-  bot: Bot,
+  bot: BotLike,
   payload: YooKassaWebhookEvent,
   startDayNow?: (chatId: number, day: number) => Promise<void>,
+  deps?: {
+    setPaymentStatusByPaymentIdFn?: typeof setPaymentStatusByPaymentId;
+    createSubscriptionForPaymentFn?: typeof createSubscriptionForPayment;
+    getTgUserIdByUserIdFn?: typeof getTgUserIdByUserId;
+    getUserStateSimpleByTgUserIdFn?: typeof getUserStateSimpleByTgUserId;
+  },
 ) => {
   if (payload.event !== 'payment.succeeded') return;
   if (payload.object?.status !== 'succeeded') return;
   const paymentId = payload.object?.id;
   if (!paymentId) return;
 
-  const paymentRow = await setPaymentStatusByPaymentId(paymentId, 'succeeded');
+  const setPaymentStatusByPaymentIdFn = deps?.setPaymentStatusByPaymentIdFn ??
+    setPaymentStatusByPaymentId;
+  const createSubscriptionForPaymentFn = deps?.createSubscriptionForPaymentFn ??
+    createSubscriptionForPayment;
+  const getTgUserIdByUserIdFn = deps?.getTgUserIdByUserIdFn ?? getTgUserIdByUserId;
+  const getUserStateSimpleByTgUserIdFn = deps?.getUserStateSimpleByTgUserIdFn ??
+    getUserStateSimpleByTgUserId;
+
+  const paymentRow = await setPaymentStatusByPaymentIdFn(paymentId, 'succeeded');
   if (!paymentRow) return;
 
-  const subscription = await createSubscriptionForPayment(paymentRow.user_id, paymentRow.id);
+  const subscription = await createSubscriptionForPaymentFn(paymentRow.user_id, paymentRow.id);
   if (!subscription) return;
-  const tgUserId = await getTgUserIdByUserId(paymentRow.user_id);
+  const tgUserId = await getTgUserIdByUserIdFn(paymentRow.user_id);
   if (!tgUserId) return;
 
   await bot.api.sendMessage(
@@ -121,9 +144,14 @@ export const handleYooKassaWebhook = async (
   );
 
   if (startDayNow) {
-    const state = await getUserStateSimpleByTgUserId(tgUserId);
+    const state = await getUserStateSimpleByTgUserIdFn(tgUserId);
     if (state?.status === 'blocked' && typeof state.day === 'number') {
       await startDayNow(tgUserId, state.day);
     }
   }
+};
+type BotLike = {
+  api: {
+    sendMessage: (chatId: number, text: string) => Promise<void>;
+  };
 };

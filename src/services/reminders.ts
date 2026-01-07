@@ -1,4 +1,3 @@
-import { Bot } from 'npm:grammy@1.32.0';
 import { Day, Message } from '../types/messages.ts';
 import {
   clearReminderByTgUserId,
@@ -20,37 +19,68 @@ const DEFAULT_REMINDERS = [
   'Маленькое напоминание: ответь кнопкой, чтобы продолжить.',
 ];
 
-const pickReminderText = (message: Message) => {
+type BotLike = {
+  api: {
+    sendMessage: (chatId: number, text: string) => Promise<void>;
+  };
+};
+
+const pickReminderText = (message: Message, randomFn: () => number) => {
   const custom = message.reminderText?.trim();
   if (custom) return custom;
-  const idx = Math.floor(Math.random() * DEFAULT_REMINDERS.length);
+  const idx = Math.floor(randomFn() * DEFAULT_REMINDERS.length);
   return DEFAULT_REMINDERS[idx];
 };
 
-export const scheduleReminder = async (tgUserId: number) => {
+export const scheduleReminder = async (tgUserId: number, deps?: {
+  setReminderByTgUserIdFn?: typeof setReminderByTgUserId;
+}) => {
+  const setReminderByTgUserIdFn = deps?.setReminderByTgUserIdFn ?? setReminderByTgUserId;
   const dueAt = new Date(Date.now() + REMINDER_DELAY_MS);
-  await setReminderByTgUserId(tgUserId, dueAt);
+  await setReminderByTgUserIdFn(tgUserId, dueAt);
 };
 
-export const clearReminder = async (tgUserId: number) => {
-  await clearReminderByTgUserId(tgUserId);
+export const clearReminder = async (tgUserId: number, deps?: {
+  clearReminderByTgUserIdFn?: typeof clearReminderByTgUserId;
+}) => {
+  const clearReminderByTgUserIdFn = deps?.clearReminderByTgUserIdFn ?? clearReminderByTgUserId;
+  await clearReminderByTgUserIdFn(tgUserId);
 };
 
-export const processDueReminders = async (bot: Bot, messages: Map<number, Day>) => {
-  const due = await getDueReminders(new Date());
+export const processDueReminders = async (
+  bot: BotLike,
+  messages: Map<number, Day>,
+  deps?: {
+    getDueRemindersFn?: (now: Date) => Promise<
+      Array<{
+        tg_user_id: number;
+        day: number;
+        message_index: number;
+        status: string;
+      }>
+    >;
+    markReminderSentByTgUserIdFn?: typeof markReminderSentByTgUserId;
+    randomFn?: () => number;
+  },
+) => {
+  const getDueRemindersFn = deps?.getDueRemindersFn ?? getDueReminders;
+  const markReminderSentByTgUserIdFn = deps?.markReminderSentByTgUserIdFn ??
+    markReminderSentByTgUserId;
+  const randomFn = deps?.randomFn ?? Math.random;
+  const due = await getDueRemindersFn(new Date());
   for (const row of due) {
     if (row.status !== 'active') {
-      await markReminderSentByTgUserId(row.tg_user_id);
+      await markReminderSentByTgUserIdFn(row.tg_user_id);
       continue;
     }
     const day = messages.get(row.day);
     const msg = day?.msg.find((m) => m.id === row.message_index);
     if (!msg?.feedback?.buttons?.length) {
-      await markReminderSentByTgUserId(row.tg_user_id);
+      await markReminderSentByTgUserIdFn(row.tg_user_id);
       continue;
     }
-    const text = pickReminderText(msg);
+    const text = pickReminderText(msg, randomFn);
     await bot.api.sendMessage(row.tg_user_id, text);
-    await markReminderSentByTgUserId(row.tg_user_id);
+    await markReminderSentByTgUserIdFn(row.tg_user_id);
   }
 };

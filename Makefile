@@ -1,4 +1,4 @@
-.PHONY: help docker-up docker-down docker-logs postgres-up postgres-down up down logs pg-up pg-down ps db-migrate db-reset db-psql db-seed db-init lint fmt start dev typecheck docker-build docker-rebuild bot-logs bot-shell admin-logs admin-rebuild docker-prod-up docker-prod-down docker-prod-logs docker-prod-build
+.PHONY: help docker-up docker-down docker-logs postgres-up postgres-down up down logs pg-up pg-down ps db-migrate db-reset db-psql db-seed db-init lint fmt start dev typecheck docker-build docker-rebuild bot-logs bot-shell admin-logs admin-rebuild docker-prod-up docker-prod-down docker-prod-logs docker-prod-build test
 
 help: ## Показать список доступных команд
 	@awk 'BEGIN {FS = ":.*##"; printf "Доступные команды:\n"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -72,6 +72,9 @@ dev: ## Запустить бота в режиме разработки (watch)
 
 typecheck: ## Проверить типы TypeScript (Deno)
 	deno check src/index.ts
+
+test: ## Запустить тесты Deno
+	deno task test
 
 bot-logs: ## Следить за логами контейнера бота
 	docker compose logs -f bot
