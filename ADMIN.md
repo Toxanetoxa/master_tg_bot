@@ -40,6 +40,7 @@
   - список сообщений внутри дня (`bot_messages`)
   - редактирование `step_index`, `message_text`
   - добавление/удаление сообщения
+  - напоминание для шага с feedback (`reminder_text`)
 
 - **Feedback**:
   - кнопки (`bot_feedback_buttons`) для сообщения

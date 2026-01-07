@@ -268,7 +268,11 @@ app.get('/api/days/:dayId/feedback-buttons', requireAdmin, async (req: Request, 
 });
 
 app.post('/api/days/:dayId/messages', requireAdmin, async (req: Request, res: Response) => {
-  const { step_index, message_text } = req.body as { step_index: number; message_text: string };
+  const { step_index, message_text, reminder_text } = req.body as {
+    step_index: number;
+    message_text: string;
+    reminder_text?: string | null;
+  };
   const conflict = await pool.query(
     'SELECT 1 FROM bot_messages WHERE day_id = $1 AND step_index = $2',
     [req.params.dayId, step_index],
@@ -277,14 +281,18 @@ app.post('/api/days/:dayId/messages', requireAdmin, async (req: Request, res: Re
     return res.status(409).send('step_index already exists for this day');
   }
   const { rows } = await pool.query(
-    'INSERT INTO bot_messages (day_id, step_index, message_text) VALUES ($1, $2, $3) RETURNING *',
-    [req.params.dayId, step_index, message_text],
+    'INSERT INTO bot_messages (day_id, step_index, message_text, reminder_text) VALUES ($1, $2, $3, $4) RETURNING *',
+    [req.params.dayId, step_index, message_text, reminder_text ?? null],
   );
   res.json(rows[0]);
 });
 
 app.put('/api/messages/:id', requireAdmin, async (req: Request, res: Response) => {
-  const { step_index, message_text } = req.body as { step_index: number; message_text: string };
+  const { step_index, message_text, reminder_text } = req.body as {
+    step_index: number;
+    message_text: string;
+    reminder_text?: string | null;
+  };
   const dayRow = await pool.query('SELECT day_id FROM bot_messages WHERE id = $1', [req.params.id]);
   if (!dayRow.rows.length) return res.status(404).send('message not found');
   const dayId = dayRow.rows[0].day_id as number;
@@ -296,8 +304,8 @@ app.put('/api/messages/:id', requireAdmin, async (req: Request, res: Response) =
     return res.status(409).send('step_index already exists for this day');
   }
   const { rows } = await pool.query(
-    'UPDATE bot_messages SET step_index = $1, message_text = $2 WHERE id = $3 RETURNING *',
-    [step_index, message_text, req.params.id],
+    'UPDATE bot_messages SET step_index = $1, message_text = $2, reminder_text = $3 WHERE id = $4 RETURNING *',
+    [step_index, message_text, reminder_text ?? null, req.params.id],
   );
   res.json(rows[0]);
 });

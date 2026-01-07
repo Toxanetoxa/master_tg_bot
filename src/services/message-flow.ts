@@ -8,6 +8,7 @@ import {
   upsertUserStateByTgUserId,
 } from '../db/repositories.ts';
 import { buildUpsellText, createPaymentLink, getPaymentButtonText } from './payments.ts';
+import { clearReminder, scheduleReminder } from './reminders.ts';
 
 type Dependencies = {
   bot: Bot;
@@ -83,8 +84,9 @@ export const createMessageFlow = (deps: Dependencies) => {
       if (nextDayData.isPremium) {
         const hasAccess = await hasActiveSubscriptionByTgUserId(chatId);
         if (!hasAccess) {
-          await sendPremiumUpsell(chatId);
-          const blockedState: UserState = { day: nextDay, messageIndex: 0, status: 'blocked' };
+        await clearReminder(chatId);
+        await sendPremiumUpsell(chatId);
+        const blockedState: UserState = { day: nextDay, messageIndex: 0, status: 'blocked' };
           deps.state.set(chatId, blockedState);
           await upsertUserStateByTgUserId(chatId, blockedState);
           return;
@@ -124,7 +126,10 @@ export const createMessageFlow = (deps: Dependencies) => {
       }
 
       // Если есть feedback-кнопки — ждём реакции пользователя.
-      if (current.feedback?.buttons?.length) break;
+      if (current.feedback?.buttons?.length) {
+        await scheduleReminder(chatId);
+        break;
+      }
 
       await advanceState(chatId);
 
@@ -142,6 +147,7 @@ export const createMessageFlow = (deps: Dependencies) => {
     if (dayData.isPremium) {
       const hasAccess = await hasActiveSubscriptionByTgUserId(chatId);
       if (!hasAccess) {
+        await clearReminder(chatId);
         await sendPremiumUpsell(chatId);
         const blockedState: UserState = { day, messageIndex: 0, status: 'blocked' };
         deps.state.set(chatId, blockedState);
@@ -164,6 +170,7 @@ export const createMessageFlow = (deps: Dependencies) => {
   };
 
   const processFeedback = async (chatId: number, type: string) => {
+    await clearReminder(chatId);
     const state = deps.state.get(chatId);
     if (!state) return;
     const dayData = getDayData(deps, state.day);

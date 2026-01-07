@@ -29,6 +29,16 @@
         :autosize="{ minRows: 6 }"
         class="rounded-lg"
       />
+      <div v-if="feedbackIds?.has(element.id)" class="reminder-block">
+        <div class="reminder-label">Напоминание (если не нажали кнопку за 12 часов)</div>
+        <n-input
+          v-model:value="element.reminder_text"
+          type="textarea"
+          :autosize="{ minRows: 2 }"
+          placeholder="Оставь пустым для дефолтного текста"
+          class="rounded-lg"
+        />
+      </div>
         <n-space justify="end" size="small" class="card-actions">
           <n-button size="small" @click.stop="$emit('save', element)">Сохранить</n-button>
           <n-button size="small" type="error" @click.stop="$emit('delete', element.id)">Удалить</n-button>
@@ -120,5 +130,13 @@ const onEnd = () => {
 }
 .n-input__textarea-el {
   padding: 10px 12px;
+}
+.reminder-block {
+  margin-top: 10px;
+}
+.reminder-label {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 6px;
 }
 </style>

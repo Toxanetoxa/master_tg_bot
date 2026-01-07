@@ -14,6 +14,7 @@ export type Message = {
   id: number;
   message: string;
   feedback?: Feedback;
+  reminderText?: string;
 };
 
 export type Day = {

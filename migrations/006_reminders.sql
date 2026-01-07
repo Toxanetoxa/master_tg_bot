@@ -1,0 +1,6 @@
+ALTER TABLE bot_messages
+ADD COLUMN IF NOT EXISTS reminder_text TEXT;
+
+ALTER TABLE user_state
+ADD COLUMN IF NOT EXISTS reminder_due_at TIMESTAMPTZ,
+ADD COLUMN IF NOT EXISTS reminder_sent_at TIMESTAMPTZ;

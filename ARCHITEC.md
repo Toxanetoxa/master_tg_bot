@@ -17,6 +17,7 @@
 - `src/services/message-flow.ts` — основная логика цепочки сообщений, обработка feedback.
 - `src/services/scheduler.ts` — ежедневная отправка следующего дня в режиме prod.
 - `src/services/payments.ts` — создание платежей ЮKassa и обработка webhook.
+- `src/services/reminders.ts` — логика напоминаний для шагов с feedback.
 - `src/db/schema.ts` — ORM-модели (Drizzle).
 - `migrations/001_init.sql` — начальная миграция схемы БД.
 - `migrations/003_messages.sql` — таблицы сообщений/feedback.
@@ -49,6 +50,7 @@
   - `day` — номер текущего дня.
   - `messageIndex` — индекс текущего сообщения внутри дня.
   - `status` — `active`, `scheduled` или `blocked` (ожидание оплаты).
+  - `reminder_due_at`, `reminder_sent_at` — поля для напоминаний.
 - `StateStore` — `Map<number, UserState>`, ключ — `chatId`.
 
 Хранилище in-memory, при перезапуске состояние теряется.
@@ -111,12 +113,14 @@
 - `sendChain(chatId)`:
   - Пока пользователь `active`, отправляет сообщения последовательно.
   - Если у сообщения есть `feedback.buttons`, отправка цепочки останавливается и ждет клика.
+  - При остановке на feedback ставит напоминание через 12 часов.
   - Пустые сообщения пропускаются, чтобы не получить ошибку Telegram.
   - После каждого сообщения вызывает `advanceState`.
 
 - `processFeedback(chatId, type)`:
   - Находит ответ на кнопки в `feedback.messages` и отправляет его.
   - Продвигает состояние и продолжает цепочку.
+  - Снимает напоминание.
 
 - `handleMessage(chatId)`:
   - Используется для любого входящего текста.
@@ -177,6 +181,15 @@
 Return URL:
 - `GET /return` — простая HTML-страница с кнопкой перехода в Telegram (используется в
   `YOOKASSA_RETURN_URL`).
+
+## Напоминания
+
+Механизм напоминаний для шагов с feedback:
+
+- `bot_messages.reminder_text` — опциональный текст напоминания для конкретного шага.
+- `user_state.reminder_due_at` / `reminder_sent_at` — планирование и отметка отправки.
+- Фоновая проверка раз в минуту отправляет напоминания, если пользователь всё ещё на том же шаге.
+- `REMINDER_DELAY_HOURS` — задержка перед отправкой напоминания (по умолчанию 12 часов).
 
 ## Очереди/брокер сообщений
 

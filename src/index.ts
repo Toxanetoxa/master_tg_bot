@@ -8,6 +8,7 @@ import { getAllUserStates, getOrCreateUser, loadMessageDays } from './db/reposit
 import type { YooKassaWebhookEvent } from './types/payments.ts';
 import { handleYooKassaWebhook } from './services/payments.ts';
 import { isYooKassaWebhookAuthorized } from './utils/yookassa.ts';
+import { processDueReminders } from './services/reminders.ts';
 
 const config = loadConfig();
 const bot = new Bot(config.token);
@@ -90,6 +91,12 @@ bot.on('message', async (ctx) => {
 });
 
 scheduler.run();
+
+setInterval(() => {
+  processDueReminders(bot, messages).catch((err) => {
+    console.error('Reminder processing failed', err);
+  });
+}, 60_000);
 
 const webhookPort = Number(Deno.env.get('YOOKASSA_WEBHOOK_PORT') ?? '0');
 if (webhookPort) {

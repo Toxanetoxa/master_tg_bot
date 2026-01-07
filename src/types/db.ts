@@ -12,6 +12,7 @@ export type MessageRow = {
   day_id: number;
   step_index: number;
   message_text: string;
+  reminder_text: string | null;
 };
 
 export type FeedbackButtonRow = {

@@ -95,6 +95,47 @@ export const getUserStateByTgUserId = async (tgUserId: number) => {
   return result[0] ?? null;
 };
 
+export const setReminderByTgUserId = async (tgUserId: number, dueAt: Date) => {
+  await sql`
+    UPDATE user_state
+    SET reminder_due_at = ${dueAt}, reminder_sent_at = NULL, updated_at = NOW()
+    WHERE user_id = (SELECT id FROM users WHERE tg_user_id = ${tgUserId})
+  `;
+};
+
+export const clearReminderByTgUserId = async (tgUserId: number) => {
+  await sql`
+    UPDATE user_state
+    SET reminder_due_at = NULL, reminder_sent_at = NULL, updated_at = NOW()
+    WHERE user_id = (SELECT id FROM users WHERE tg_user_id = ${tgUserId})
+  `;
+};
+
+export const markReminderSentByTgUserId = async (tgUserId: number) => {
+  await sql`
+    UPDATE user_state
+    SET reminder_sent_at = NOW(), updated_at = NOW()
+    WHERE user_id = (SELECT id FROM users WHERE tg_user_id = ${tgUserId})
+  `;
+};
+
+export const getDueReminders = async (now: Date) => {
+  const rows = await sql<{
+    tg_user_id: number;
+    day: number;
+    message_index: number;
+    status: string;
+  }[]>`
+    SELECT u.tg_user_id, s.day, s.message_index, s.status
+    FROM user_state s
+    JOIN users u ON u.id = s.user_id
+    WHERE s.reminder_due_at IS NOT NULL
+      AND s.reminder_due_at <= ${now}
+      AND s.reminder_sent_at IS NULL
+  `;
+  return rows;
+};
+
 export const getAllUserStates = async () => {
   const rows = await db
     .select({
@@ -122,7 +163,7 @@ export const loadMessageDays = async () => {
     ORDER BY day_number
   `;
   const messages = await sql<MessageRow[]>`
-    SELECT id, day_id, step_index, message_text
+    SELECT id, day_id, step_index, message_text, reminder_text
     FROM bot_messages
     ORDER BY day_id, step_index
   `;
@@ -174,7 +215,12 @@ export const loadMessageDays = async () => {
             : undefined,
         }
         : undefined;
-      return { id: m.step_index, message: m.message_text, feedback };
+      return {
+        id: m.step_index,
+        message: m.message_text,
+        feedback,
+        reminderText: m.reminder_text ?? undefined,
+      };
     });
     map.set(day.day_number, {
       isPremium: day.is_premium,

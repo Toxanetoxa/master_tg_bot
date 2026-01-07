@@ -49,6 +49,7 @@ export type Message = {
   day_id: number;
   step_index: number;
   message_text: string;
+  reminder_text?: string | null;
 };
 
 export type FeedbackButton = {
