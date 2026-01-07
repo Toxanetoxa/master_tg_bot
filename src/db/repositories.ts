@@ -3,12 +3,7 @@ import { db } from './client.ts';
 import { users, userState } from './schema.ts';
 import { sql } from './client.ts';
 import { Day, FeedbackType, Message } from '../types/messages.ts';
-import {
-  DayRow,
-  FeedbackButtonRow,
-  FeedbackMessageRow,
-  MessageRow,
-} from '../types/db.ts';
+import { DayRow, FeedbackButtonRow, FeedbackMessageRow, MessageRow } from '../types/db.ts';
 import { UserStatus } from '../types/state.ts';
 
 export const getOrCreateUser = async (tgUserId: number, profile?: {
@@ -83,6 +78,16 @@ export const upsertUserState = async (userId: number, state: {
 
 export const getUserStateByTgUserId = async (tgUserId: number) => {
   const result = await db
+    .select()
+    .from(userState)
+    .innerJoin(users, eq(userState.userId, users.id))
+    .where(eq(users.tgUserId, tgUserId))
+    .limit(1);
+  return result[0] ?? null;
+};
+
+export const getUserStateSimpleByTgUserId = async (tgUserId: number) => {
+  const result = await db
     .select({
       day: userState.day,
       messageIndex: userState.messageIndex,
@@ -148,9 +153,10 @@ export const getAllUserStates = async () => {
     .innerJoin(users, eq(userState.userId, users.id));
   return rows.map((row) => ({
     ...row,
-    status: (row.status === 'scheduled'
-      ? 'scheduled'
-      : row.status === 'blocked'
+    status:
+      (row.status === 'scheduled'
+        ? 'scheduled'
+        : row.status === 'blocked'
         ? 'blocked'
         : 'active') as UserStatus,
   }));

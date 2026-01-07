@@ -1,6 +1,7 @@
 # Telegram Bot (Deno + grammY)
 
-Проект Telegram-бота на Deno + TypeScript с хранением состояния и контента в PostgreSQL + админка для контента и оплатой через ЮKassa.
+Проект Telegram-бота на Deno + TypeScript с хранением состояния и контента в PostgreSQL + админка
+для контента и оплатой через ЮKassa.
 
 ## Требования
 
@@ -69,20 +70,25 @@
 Бот создает платеж и отправляет пользователю кнопку оплаты. После оплаты ЮKassa присылает webhook.
 
 Endpoints:
+
 - `POST /webhooks/yookassa` — обработка событий оплаты.
 - `GET /return` — страница возврата в Telegram.
 
 Минимальные шаги:
-1. Заполни `YOOKASSA_SHOP_ID`, `YOOKASSA_SECRET_KEY`, `YOOKASSA_RETURN_URL`, `YOOKASSA_WEBHOOK_PORT`.
+
+1. Заполни `YOOKASSA_SHOP_ID`, `YOOKASSA_SECRET_KEY`, `YOOKASSA_RETURN_URL`,
+   `YOOKASSA_WEBHOOK_PORT`.
 2. Запусти бота и HTTP сервер (порт из `YOOKASSA_WEBHOOK_PORT`).
 3. В ЮKassa добавь webhook URL: `https://<domain>/webhooks/yookassa`.
 4. В `YOOKASSA_RETURN_URL` укажи `https://<domain>/return`.
 
 ## Напоминания (feedback)
 
-Если пользователь остановился на шаге с feedback-кнопками и не нажал кнопку за 12 часов, бот отправляет напоминание.
+Если пользователь остановился на шаге с feedback-кнопками и не нажал кнопку за 12 часов, бот
+отправляет напоминание.
 
 Как это работает:
+
 - напоминания ставятся автоматически при остановке на шаге с кнопками;
 - при ответе пользователя напоминание очищается;
 - текст берется из `reminder_text` (если задан), иначе — случайный дефолтный.
@@ -115,7 +121,7 @@ Endpoints:
 
 ## База данных
 
-Миграции: `migrations/`  
+Миграции: `migrations/`\
 Сиды сообщений: `seeds/001_messages.sql` (подключает `seeds/days/*`).
 
 Команды:
@@ -164,8 +170,12 @@ Endpoints:
 
 ## Troubleshooting
 
-- **Нет кнопки Telegram Login** — проверь `VITE_TG_BOT_USERNAME` в `admin/.env` и перезапусти `pnpm dev`.
-- **Blocked request (Vite allowedHosts)** — добавь домен ngrok в `admin/vite.config.ts` и перезапусти dev‑сервер.
-- **403 в админке** — у пользователя в `users.role` должно быть `admin` (или включи `ADMIN_AUTH_DISABLED=true` в dev).
+- **Нет кнопки Telegram Login** — проверь `VITE_TG_BOT_USERNAME` в `admin/.env` и перезапусти
+  `pnpm dev`.
+- **Blocked request (Vite allowedHosts)** — добавь домен ngrok в `admin/vite.config.ts` и
+  перезапусти dev‑сервер.
+- **403 в админке** — у пользователя в `users.role` должно быть `admin` (или включи
+  `ADMIN_AUTH_DISABLED=true` в dev).
 - **409 step_index** — номер шага уже занят; измени `step_index`.
-- **Нет webhook-ов ЮKassa** — проверь `YOOKASSA_WEBHOOK_PORT`, актуальный ngrok URL и отсутствие `YOOKASSA_WEBHOOK_AUTH` (если не используешь).
+- **Нет webhook-ов ЮKassa** — проверь `YOOKASSA_WEBHOOK_PORT`, актуальный ngrok URL и отсутствие
+  `YOOKASSA_WEBHOOK_AUTH` (если не используешь).

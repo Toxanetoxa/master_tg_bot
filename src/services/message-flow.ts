@@ -84,9 +84,9 @@ export const createMessageFlow = (deps: Dependencies) => {
       if (nextDayData.isPremium) {
         const hasAccess = await hasActiveSubscriptionByTgUserId(chatId);
         if (!hasAccess) {
-        await clearReminder(chatId);
-        await sendPremiumUpsell(chatId);
-        const blockedState: UserState = { day: nextDay, messageIndex: 0, status: 'blocked' };
+          await clearReminder(chatId);
+          await sendPremiumUpsell(chatId);
+          const blockedState: UserState = { day: nextDay, messageIndex: 0, status: 'blocked' };
           deps.state.set(chatId, blockedState);
           await upsertUserStateByTgUserId(chatId, blockedState);
           return;

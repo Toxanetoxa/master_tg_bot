@@ -1,5 +1,7 @@
 import crypto from 'node:crypto';
-import express, { Request, Response, NextFunction } from 'express';
+import process from 'node:process';
+import { Buffer } from 'node:buffer';
+import express, { NextFunction, Request, Response } from 'express';
 import cookieParser from 'cookie-parser';
 import pg from 'pg';
 import dotenv from 'dotenv';
@@ -327,23 +329,31 @@ app.get('/api/messages/:messageId/feedback', requireAdmin, async (req: Request, 
   res.json({ buttons: buttons.rows, messages: messages.rows });
 });
 
-app.post('/api/messages/:messageId/feedback/buttons', requireAdmin, async (req: Request, res: Response) => {
-  const { type, text } = req.body as { type: string; text: string };
-  const { rows } = await pool.query(
-    'INSERT INTO bot_feedback_buttons (message_id, type, text) VALUES ($1, $2, $3) RETURNING *',
-    [req.params.messageId, type, text],
-  );
-  res.json(rows[0]);
-});
+app.post(
+  '/api/messages/:messageId/feedback/buttons',
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    const { type, text } = req.body as { type: string; text: string };
+    const { rows } = await pool.query(
+      'INSERT INTO bot_feedback_buttons (message_id, type, text) VALUES ($1, $2, $3) RETURNING *',
+      [req.params.messageId, type, text],
+    );
+    res.json(rows[0]);
+  },
+);
 
-app.post('/api/messages/:messageId/feedback/messages', requireAdmin, async (req: Request, res: Response) => {
-  const { type, message_text } = req.body as { type: string; message_text: string };
-  const { rows } = await pool.query(
-    'INSERT INTO bot_feedback_messages (message_id, type, message_text) VALUES ($1, $2, $3) RETURNING *',
-    [req.params.messageId, type, message_text],
-  );
-  res.json(rows[0]);
-});
+app.post(
+  '/api/messages/:messageId/feedback/messages',
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    const { type, message_text } = req.body as { type: string; message_text: string };
+    const { rows } = await pool.query(
+      'INSERT INTO bot_feedback_messages (message_id, type, message_text) VALUES ($1, $2, $3) RETURNING *',
+      [req.params.messageId, type, message_text],
+    );
+    res.json(rows[0]);
+  },
+);
 
 app.put('/api/feedback/buttons/:id', requireAdmin, async (req: Request, res: Response) => {
   const { type, text } = req.body as { type: string; text: string };

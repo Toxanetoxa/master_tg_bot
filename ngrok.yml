@@ -1,4 +1,4 @@
-version: "2"
+version: '2'
 tunnels:
   webhook:
     addr: http://bot:8080

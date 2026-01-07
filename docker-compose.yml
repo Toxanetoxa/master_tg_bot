@@ -54,7 +54,7 @@ services:
     volumes:
       - ./ngrok.yml:/etc/ngrok.yml:ro
     ports:
-      - "4040:4040"
+      - '4040:4040'
     command: start --all --config /etc/ngrok.yml --log=stdout
 
 volumes:
