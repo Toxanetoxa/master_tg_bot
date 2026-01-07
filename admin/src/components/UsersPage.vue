@@ -44,6 +44,13 @@
               <span class="value">{{ selectedUser.role }}</span>
             </div>
             <div class="detail-row">
+              <span class="label">Часовой пояс (UTC)</span>
+              <span class="value timezone-edit">
+                <n-input-number v-model:value="timezoneHours" :step="0.5" :precision="1" />
+                <n-button size="tiny" @click="saveTimezone">Сохранить</n-button>
+              </span>
+            </div>
+            <div class="detail-row">
               <span class="label">Created</span>
               <span class="value">{{ formatDate(selectedUser.created_at) }}</span>
             </div>
@@ -62,8 +69,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { NCard, NInput, NSpace, NTag } from 'naive-ui';
+import { computed, ref, watch } from 'vue';
+import { NButton, NCard, NInput, NInputNumber, NSpace, NTag } from 'naive-ui';
 import type { AppUser } from '../types';
 
 const props = defineProps<{
@@ -75,6 +82,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'select', id: number): void;
   (e: 'update:search', value: string): void;
+  (e: 'update-timezone', payload: { id: number; timezone_offset_min: number }): void;
 }>();
 
 const searchModel = computed({
@@ -104,6 +112,16 @@ const selectedUser = computed(() => {
   return props.users.find((u) => u.id === props.selectedUserId) ?? null;
 });
 
+const timezoneHours = ref<number | null>(null);
+
+watch(
+  selectedUser,
+  (user) => {
+    timezoneHours.value = user ? user.timezone_offset_min / 60 : null;
+  },
+  { immediate: true },
+);
+
 const displayName = (user: AppUser) => {
   const full = [user.first_name, user.last_name].filter(Boolean).join(' ');
   return full || user.username || `User #${user.id}`;
@@ -114,6 +132,14 @@ const formatDate = (value: string | null) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString('ru-RU');
+};
+
+const saveTimezone = () => {
+  if (!selectedUser.value || timezoneHours.value === null) return;
+  emit('update-timezone', {
+    id: selectedUser.value.id,
+    timezone_offset_min: Math.round(timezoneHours.value * 60),
+  });
 };
 </script>
 
@@ -170,6 +196,11 @@ const formatDate = (value: string | null) => {
 }
 .value {
   text-align: right;
+}
+.timezone-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 .empty {
   padding: 12px;

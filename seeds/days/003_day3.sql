@@ -72,9 +72,3 @@ SELECT d.id, 3, $$Ты сегодня сделала важное упражне
 Завтра я дам следующий шаг, который усиливает близость и притяжение.$$ 
 FROM bot_days d WHERE d.day_number = 3
 ON CONFLICT (day_id, step_index) DO NOTHING;
-
-INSERT INTO bot_messages (day_id, step_index, message_text)
-SELECT d.id, 4, $$Если хочешь продолжить глубже, впереди есть полная программа на 30 дней.
-Когда будешь готова — я подскажу, как перейти.$$ 
-FROM bot_days d WHERE d.day_number = 3
-ON CONFLICT (day_id, step_index) DO NOTHING;

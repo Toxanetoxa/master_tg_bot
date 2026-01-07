@@ -16,6 +16,7 @@ const DATABASE_URL = process.env.DATABASE_URL;
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN;
 const COOKIE_SECRET = process.env.ADMIN_COOKIE_SECRET || 'change-me';
 const AUTH_DISABLED = process.env.ADMIN_AUTH_DISABLED === 'true';
+const DEFAULT_DAILY_SEND_TIME = process.env.DAILY_SEND_TIME || '10:00';
 
 if (!DATABASE_URL) throw new Error('Missing DATABASE_URL');
 if (!BOT_TOKEN) throw new Error('Missing TELEGRAM_BOT_TOKEN or BOT_TOKEN');
@@ -52,6 +53,7 @@ type AppUser = {
   role: string;
   created_at: string | null;
   last_seen_at: string | null;
+  timezone_offset_min: number;
 };
 
 type PaymentRow = {
@@ -65,6 +67,11 @@ type PaymentRow = {
   username: string | null;
   first_name: string | null;
   last_name: string | null;
+};
+
+type SchedulerSettings = {
+  daily_send_time: string;
+  start_now_requested_at: string | null;
 };
 
 const buildDataCheckString = (data: Record<string, string | number>) => {
@@ -165,9 +172,19 @@ app.get('/api/days', requireAdmin, async (_req: Request, res: Response) => {
 
 app.get('/api/users', requireAdmin, async (_req: Request, res: Response) => {
   const { rows } = await pool.query<AppUser>(
-    'SELECT id, tg_user_id, username, first_name, last_name, role, created_at, last_seen_at FROM users ORDER BY id DESC',
+    'SELECT id, tg_user_id, username, first_name, last_name, role, created_at, last_seen_at, timezone_offset_min FROM users ORDER BY id DESC',
   );
   res.json(rows);
+});
+
+app.put('/api/users/:id/timezone', requireAdmin, async (req: Request, res: Response) => {
+  const { timezone_offset_min } = req.body as { timezone_offset_min: number };
+  const { rows } = await pool.query<AppUser>(
+    'UPDATE users SET timezone_offset_min = $1, updated_at = NOW() WHERE id = $2 RETURNING id, tg_user_id, username, first_name, last_name, role, created_at, last_seen_at, timezone_offset_min',
+    [timezone_offset_min, req.params.id],
+  );
+  if (!rows.length) return res.status(404).send('user not found');
+  res.json(rows[0]);
 });
 
 app.get('/api/payments', requireAdmin, async (_req: Request, res: Response) => {
@@ -217,6 +234,41 @@ app.get('/api/analytics', requireAdmin, async (_req: Request, res: Response) => 
     dayProgress: dayProgress.rows,
     totals: totals.rows[0],
   });
+});
+
+const ensureSchedulerSettings = async () => {
+  const existing = await pool.query<SchedulerSettings>(
+    'SELECT daily_send_time, start_now_requested_at FROM scheduler_settings LIMIT 1',
+  );
+  if (existing.rows.length) return existing.rows[0];
+  const inserted = await pool.query<SchedulerSettings>(
+    'INSERT INTO scheduler_settings (daily_send_time) VALUES ($1) RETURNING daily_send_time, start_now_requested_at',
+    [DEFAULT_DAILY_SEND_TIME],
+  );
+  return inserted.rows[0];
+};
+
+app.get('/api/scheduler', requireAdmin, async (_req: Request, res: Response) => {
+  const settings = await ensureSchedulerSettings();
+  res.json(settings);
+});
+
+app.put('/api/scheduler', requireAdmin, async (req: Request, res: Response) => {
+  const { daily_send_time } = req.body as { daily_send_time: string };
+  const { rows } = await pool.query<SchedulerSettings>(
+    'UPDATE scheduler_settings SET daily_send_time = $1 WHERE id = 1 RETURNING daily_send_time, start_now_requested_at',
+    [daily_send_time],
+  );
+  if (!rows.length) return res.status(404).send('scheduler settings not found');
+  res.json(rows[0]);
+});
+
+app.post('/api/scheduler/start-now', requireAdmin, async (_req: Request, res: Response) => {
+  const { rows } = await pool.query<SchedulerSettings>(
+    'UPDATE scheduler_settings SET start_now_requested_at = NOW() WHERE id = 1 RETURNING daily_send_time, start_now_requested_at',
+  );
+  if (!rows.length) return res.status(404).send('scheduler settings not found');
+  res.json(rows[0]);
 });
 
 app.post('/api/days', requireAdmin, async (req: Request, res: Response) => {

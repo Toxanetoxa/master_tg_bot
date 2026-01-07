@@ -7,6 +7,7 @@ export const users = pgTable('users', {
   username: text('username'),
   firstName: text('first_name'),
   lastName: text('last_name'),
+  timezoneOffsetMin: integer('timezone_offset_min').notNull().default(0),
   role: text('role').notNull().default('user'),
   lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

@@ -101,9 +101,10 @@ export const getUserStateSimpleByTgUserId = async (tgUserId: number) => {
 };
 
 export const setReminderByTgUserId = async (tgUserId: number, dueAt: Date) => {
+  const dueAtIso = dueAt.toISOString();
   await sql`
     UPDATE user_state
-    SET reminder_due_at = ${dueAt}, reminder_sent_at = NULL, updated_at = NOW()
+    SET reminder_due_at = ${dueAtIso}, reminder_sent_at = NULL, updated_at = NOW()
     WHERE user_id = (SELECT id FROM users WHERE tg_user_id = ${tgUserId})
   `;
 };
@@ -125,6 +126,7 @@ export const markReminderSentByTgUserId = async (tgUserId: number) => {
 };
 
 export const getDueReminders = async (now: Date) => {
+  const nowIso = now.toISOString();
   const rows = await sql<{
     tg_user_id: number;
     day: number;
@@ -135,7 +137,7 @@ export const getDueReminders = async (now: Date) => {
     FROM user_state s
     JOIN users u ON u.id = s.user_id
     WHERE s.reminder_due_at IS NOT NULL
-      AND s.reminder_due_at <= ${now}
+      AND s.reminder_due_at <= ${nowIso}
       AND s.reminder_sent_at IS NULL
   `;
   return rows;
@@ -148,6 +150,7 @@ export const getAllUserStates = async () => {
       day: userState.day,
       messageIndex: userState.messageIndex,
       status: userState.status,
+      timezoneOffsetMin: users.timezoneOffsetMin,
     })
     .from(userState)
     .innerJoin(users, eq(userState.userId, users.id));
@@ -158,8 +161,51 @@ export const getAllUserStates = async () => {
         ? 'scheduled'
         : row.status === 'blocked'
         ? 'blocked'
-        : 'active') as UserStatus,
+      : 'active') as UserStatus,
   }));
+};
+
+export const getTimezoneOffsetsByTgUserIds = async (tgUserIds: number[]) => {
+  if (!tgUserIds.length) return new Map<number, number>();
+  const rows = await sql<{ tg_user_id: number; timezone_offset_min: number }[]>`
+    SELECT tg_user_id, timezone_offset_min
+    FROM users
+    WHERE tg_user_id = ANY(${tgUserIds})
+  `;
+  const map = new Map<number, number>();
+  for (const row of rows) {
+    map.set(Number(row.tg_user_id), row.timezone_offset_min ?? 0);
+  }
+  return map;
+};
+
+export const getSchedulerSettings = async (fallbackDailySendTime: string) => {
+  const rows = await sql<{
+    daily_send_time: string;
+    start_now_requested_at: string | null;
+  }[]>`
+    SELECT daily_send_time, start_now_requested_at
+    FROM scheduler_settings
+    LIMIT 1
+  `;
+  if (rows.length) return rows[0];
+
+  const inserted = await sql<{
+    daily_send_time: string;
+    start_now_requested_at: string | null;
+  }[]>`
+    INSERT INTO scheduler_settings (daily_send_time)
+    VALUES (${fallbackDailySendTime})
+    RETURNING daily_send_time, start_now_requested_at
+  `;
+  return inserted[0];
+};
+
+export const clearSchedulerStartNow = async () => {
+  await sql`
+    UPDATE scheduler_settings
+    SET start_now_requested_at = NULL
+  `;
 };
 
 export const loadMessageDays = async () => {

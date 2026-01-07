@@ -34,6 +34,14 @@
       >
         Платежи
       </n-button>
+      <n-button
+        size="small"
+        :type="route === 'scheduler' ? 'primary' : 'default'"
+        secondary
+        @click="$emit('navigate', 'scheduler')"
+      >
+        Рассылка
+      </n-button>
     </div>
     <div class="user">
       <span class="theme-label">Тема</span>
@@ -50,12 +58,12 @@ import type { AdminUser } from '../types';
 
 defineProps<{
   me: AdminUser | null;
-  route: 'editor' | 'premium-days' | 'users' | 'payments';
+  route: 'editor' | 'premium-days' | 'users' | 'payments' | 'scheduler';
 }>();
 
 defineEmits<{
   (e: 'logout'): void;
-  (e: 'navigate', route: 'editor' | 'premium-days' | 'users' | 'payments'): void;
+  (e: 'navigate', route: 'editor' | 'premium-days' | 'users' | 'payments' | 'scheduler'): void;
 }>();
 
 const model = defineModel<boolean>('isDark', { required: true });

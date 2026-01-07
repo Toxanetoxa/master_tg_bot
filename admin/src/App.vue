@@ -80,12 +80,14 @@
                 :selected-user-id="selectedUserId"
                 v-model:search="userSearch"
                 @select="selectUser"
+                @update-timezone="updateUserTimezone"
               />
               <PaymentsPage
-                v-else
+                v-else-if="route === 'payments'"
                 :payments="payments"
                 :analytics="analytics"
               />
+              <SchedulerPage v-else />
             </div>
           </div>
         </template>
@@ -124,6 +126,7 @@ import SearchBar from './components/SearchBar.vue';
 import PremiumDaysPage from './components/PremiumDaysPage.vue';
 import UsersPage from './components/UsersPage.vue';
 import PaymentsPage from './components/PaymentsPage.vue';
+import SchedulerPage from './components/SchedulerPage.vue';
 
 const me = ref<AdminUser | null>(null);
 const days = ref<Day[]>([]);
@@ -159,7 +162,7 @@ const theme = computed(() => (isDark.value ? darkTheme : null));
 const daySearch = ref('');
 const messageSearch = ref('');
 const userSearch = ref('');
-const route = ref<'editor' | 'premium-days' | 'users' | 'payments'>('editor');
+const route = ref<'editor' | 'premium-days' | 'users' | 'payments' | 'scheduler'>('editor');
 
 const sortMessages = () => {
   messages.value = [...messages.value].sort((a, b) => a.step_index - b.step_index);
@@ -201,12 +204,14 @@ const syncRouteFromHash = () => {
     route.value = 'users';
   } else if (hash === 'payments') {
     route.value = 'payments';
+  } else if (hash === 'scheduler') {
+    route.value = 'scheduler';
   } else {
     route.value = 'editor';
   }
 };
 
-const setRoute = (next: 'editor' | 'premium-days' | 'users' | 'payments') => {
+const setRoute = (next: 'editor' | 'premium-days' | 'users' | 'payments' | 'scheduler') => {
   route.value = next;
   if (next === 'premium-days') {
     window.location.hash = '#premium-days';
@@ -214,6 +219,8 @@ const setRoute = (next: 'editor' | 'premium-days' | 'users' | 'payments') => {
     window.location.hash = '#users';
   } else if (next === 'payments') {
     window.location.hash = '#payments';
+  } else if (next === 'scheduler') {
+    window.location.hash = '#scheduler';
   } else {
     window.location.hash = '';
   }
@@ -368,6 +375,12 @@ const deleteMessage = async (id: number) => {
     selectedMessage.value = null;
   }
   sortMessages();
+};
+
+const updateUserTimezone = async (payload: { id: number; timezone_offset_min: number }) => {
+  const updated = await apiPut<AppUser>(`/api/users/${payload.id}/timezone`, payload);
+  const idx = users.value.findIndex((u) => u.id === updated.id);
+  if (idx >= 0) users.value[idx] = updated;
 };
 
 const selectMessage = async (id: number) => {

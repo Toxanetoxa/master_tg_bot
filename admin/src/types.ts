@@ -15,6 +15,7 @@ export type AppUser = {
   role: string;
   created_at: string | null;
   last_seen_at: string | null;
+  timezone_offset_min: number;
 };
 
 export type PaymentRow = {
@@ -69,4 +70,9 @@ export type FeedbackMessage = {
 export type FeedbackResponse = {
   buttons: FeedbackButton[];
   messages: FeedbackMessage[];
+};
+
+export type SchedulerSettings = {
+  daily_send_time: string;
+  start_now_requested_at: string | null;
 };
