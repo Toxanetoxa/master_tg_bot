@@ -5,6 +5,9 @@ import { StateStore, UserState } from '../types/state.ts';
 import {
   deleteUserStateByTgUserId,
   hasActiveSubscriptionByTgUserId,
+  clearUpsellRetryByTgUserId,
+  getUpsellRetryStateByTgUserId,
+  setUpsellRetryByTgUserId,
   upsertUserStateByTgUserId,
 } from '../db/repositories.ts';
 import { buildUpsellText, createPaymentLink, getPaymentButtonText } from './payments.ts';
@@ -45,6 +48,15 @@ export const createMessageFlow = (deps: Dependencies) => {
     return orderedDays[idx + 1] ?? null;
   };
 
+  const scheduleUpsellRetry = async (chatId: number) => {
+    const state = await getUpsellRetryStateByTgUserId(chatId);
+    const attempts = (state?.upsell_attempts ?? 0) + 1;
+    const delaysMin = [5, 15, 60, 180, 720, 1440];
+    const delay = delaysMin[Math.min(attempts - 1, delaysMin.length - 1)];
+    const nextAt = new Date(Date.now() + delay * 60_000);
+    await setUpsellRetryByTgUserId(chatId, nextAt, attempts);
+  };
+
   const sendPremiumUpsell = async (chatId: number) => {
     const text = buildUpsellText();
     const buttonText = getPaymentButtonText();
@@ -52,9 +64,16 @@ export const createMessageFlow = (deps: Dependencies) => {
       const paymentUrl = await createPaymentLink(chatId);
       const kb = new InlineKeyboard().url(buttonText, paymentUrl);
       await deps.bot.api.sendMessage(chatId, text, { reply_markup: kb });
+      await clearUpsellRetryByTgUserId(chatId);
+      return true;
     } catch (err) {
       console.error('Failed to create YooKassa payment link', err);
-      await deps.bot.api.sendMessage(chatId, text);
+      await deps.bot.api.sendMessage(
+        chatId,
+        `${text}\n\nСервис оплаты временно недоступен. Я попробую ещё раз и пришлю кнопку позже.`,
+      );
+      await scheduleUpsellRetry(chatId);
+      return false;
     }
   };
 
@@ -193,11 +212,24 @@ export const createMessageFlow = (deps: Dependencies) => {
     await sendChain(chatId);
   };
 
+  const retryPremiumUpsell = async (chatId: number) => {
+    const state = deps.state.get(chatId);
+    if (!state || state.status !== 'blocked') return;
+    const hasAccess = await hasActiveSubscriptionByTgUserId(chatId);
+    if (hasAccess) {
+      await clearUpsellRetryByTgUserId(chatId);
+      await startDayNow(chatId, state.day);
+      return;
+    }
+    await sendPremiumUpsell(chatId);
+  };
+
   return {
     advanceState,
     startDayNow,
     startFirstDay,
     processFeedback,
     handleMessage,
+    retryPremiumUpsell,
   };
 };

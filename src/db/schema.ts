@@ -20,6 +20,8 @@ export const userState = pgTable('user_state', {
   day: integer('day').notNull(),
   messageIndex: integer('message_index').notNull(),
   status: text('status').notNull(),
+  upsellNextAt: timestamp('upsell_next_at', { withTimezone: true }),
+  upsellAttempts: integer('upsell_attempts').notNull().default(0),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 

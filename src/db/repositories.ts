@@ -125,6 +125,41 @@ export const markReminderSentByTgUserId = async (tgUserId: number) => {
   `;
 };
 
+export const getUpsellRetryStateByTgUserId = async (tgUserId: number) => {
+  const rows = await sql<{
+    upsell_attempts: number;
+    upsell_next_at: string | null;
+  }[]>`
+    SELECT s.upsell_attempts, s.upsell_next_at
+    FROM user_state s
+    JOIN users u ON u.id = s.user_id
+    WHERE u.tg_user_id = ${tgUserId}
+    LIMIT 1
+  `;
+  return rows[0] ?? null;
+};
+
+export const setUpsellRetryByTgUserId = async (
+  tgUserId: number,
+  nextAt: Date,
+  attempts: number,
+) => {
+  const nextAtIso = nextAt.toISOString();
+  await sql`
+    UPDATE user_state
+    SET upsell_next_at = ${nextAtIso}, upsell_attempts = ${attempts}, updated_at = NOW()
+    WHERE user_id = (SELECT id FROM users WHERE tg_user_id = ${tgUserId})
+  `;
+};
+
+export const clearUpsellRetryByTgUserId = async (tgUserId: number) => {
+  await sql`
+    UPDATE user_state
+    SET upsell_next_at = NULL, upsell_attempts = 0, updated_at = NOW()
+    WHERE user_id = (SELECT id FROM users WHERE tg_user_id = ${tgUserId})
+  `;
+};
+
 export const getDueReminders = async (now: Date) => {
   const nowIso = now.toISOString();
   const rows = await sql<{
@@ -139,6 +174,20 @@ export const getDueReminders = async (now: Date) => {
     WHERE s.reminder_due_at IS NOT NULL
       AND s.reminder_due_at <= ${nowIso}
       AND s.reminder_sent_at IS NULL
+  `;
+  return rows;
+};
+
+export const getDueUpsellRetries = async (now: Date) => {
+  const nowIso = now.toISOString();
+  const rows = await sql<{
+    tg_user_id: number;
+  }[]>`
+    SELECT u.tg_user_id
+    FROM user_state s
+    JOIN users u ON u.id = s.user_id
+    WHERE s.upsell_next_at IS NOT NULL
+      AND s.upsell_next_at <= ${nowIso}
   `;
   return rows;
 };

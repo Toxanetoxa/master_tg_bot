@@ -9,6 +9,7 @@ import type { YooKassaWebhookEvent } from './types/payments.ts';
 import { handleYooKassaWebhook } from './services/payments.ts';
 import { isYooKassaWebhookAuthorized } from './utils/yookassa.ts';
 import { processDueReminders } from './services/reminders.ts';
+import { processUpsellRetries } from './services/upsell-retries.ts';
 
 const config = loadConfig();
 const bot = new Bot(config.token);
@@ -95,6 +96,12 @@ scheduler.run();
 setInterval(() => {
   processDueReminders(bot, messages).catch((err) => {
     console.error('Reminder processing failed', err);
+  });
+}, 60_000);
+
+setInterval(() => {
+  processUpsellRetries(flow.retryPremiumUpsell).catch((err) => {
+    console.error('Upsell retry processing failed', err);
   });
 }, 60_000);
 
