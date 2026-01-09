@@ -11,7 +11,7 @@ COPY admin/postcss.config.cjs ./postcss.config.cjs
 COPY admin/index.html ./index.html
 
 RUN corepack enable && corepack prepare pnpm@10.20.0 --activate
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 COPY admin/src ./src
 COPY admin/server ./server
